@@ -266,6 +266,7 @@ local bossNames = {
     "Leatherface",
     "The Protagonist",
     "Yasha Ape"
+    "AdamSmasher"
 }
 
 local bossToggles = {}     -- Whether auto-kill is active for each boss.
