@@ -1,13 +1,4 @@
------------------------------------------------
--- Combined Exploit GUI with Three Sections:
---   1. Auto Kill
---   2. Styles (Combat Styles)
---   3. Relics (Auto Teleport to spawned trinkets)
---
--- The GUI opens with an animation and toggles (with animation)
--- when pressing RightAlt.
--- Colors remain unchanged.
------------------------------------------------
+
 
 -- SERVICES
 local Players = game:GetService("Players")
