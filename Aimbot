@@ -1,0 +1,134 @@
+-- Prevent duplicate injections
+if getgenv().InjectedAimBot then
+    return
+end
+getgenv().InjectedAimBot = true
+
+task.wait(1)
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+if not LocalPlayer then return end
+
+-- Adjustable variables
+local sensitivity = 1      -- Smoothness of camera adjustment
+local fovRadius = 100        -- Radius of the circle in pixels
+local verticalOffset = 10    -- Vertical offset (in pixels) for the circle
+
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AimGui"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+if typeof(gethui) == "function" then
+    screenGui.Parent = gethui()
+else
+    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+
+local fovCircle = Instance.new("Frame")
+fovCircle.Name = "FOVCircle"
+fovCircle.Size = UDim2.new(0, fovRadius * 2, 0, fovRadius * 2)
+fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+fovCircle.Position = UDim2.new(0, 0, 0, 0) -- Updated every frame
+fovCircle.BackgroundTransparency = 1         -- No fill
+
+-- Add a UIStroke for an outlined effect
+local stroke = Instance.new("UIStroke")
+stroke.Parent = fovCircle
+stroke.Color = Color3.new(0, 0, 0)  -- Black outline
+stroke.Thickness = 2
+
+-- Round the frame to a circle
+local uicorner = Instance.new("UICorner")
+uicorner.Parent = fovCircle
+uicorner.CornerRadius = UDim.new(1, 0)
+
+fovCircle.Parent = screenGui
+
+-- Aiming state and persistent target variable
+local aiming = false
+local currentTarget = nil
+
+-- Connection references for later disconnection
+local inputBeganConnection1, inputEndedConnection1, renderSteppedConnection, destroyConnection
+
+inputBeganConnection1 = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+        aiming = true
+        currentTarget = nil -- Clear any previous target when starting a new lock-on
+    end
+end)
+
+inputEndedConnection1 = UserInputService.InputEnded:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+        aiming = false
+        currentTarget = nil
+    end
+end)
+
+renderSteppedConnection = RunService.RenderStepped:Connect(function(delta)
+    local mousePos = UserInputService:GetMouseLocation()
+    local targetPos = Vector2.new(mousePos.X, mousePos.Y + verticalOffset)
+    fovCircle.Position = UDim2.new(0, targetPos.X, 0, targetPos.Y)
+    
+    if aiming then
+        -- Lock on to the first valid target and keep it until MouseButton2 is released
+        if currentTarget == nil then
+            local candidate = nil
+            local bestDistance = fovRadius  -- Only consider targets within the circle
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+                    local head = player.Character.Head
+                    local headPos, onScreen = camera:WorldToViewportPoint(head.Position)
+                    if onScreen then
+                        local headScreenPos = Vector2.new(headPos.X, headPos.Y)
+                        local distance = (headScreenPos - targetPos).Magnitude
+                        if distance < bestDistance then
+                            bestDistance = distance
+                            candidate = head
+                        end
+                    end
+                end
+            end
+            if candidate then
+                currentTarget = candidate
+            end
+        else
+            if not (currentTarget and currentTarget.Parent and currentTarget:IsDescendantOf(workspace)) then
+                currentTarget = nil
+            end
+        end
+        
+        if currentTarget then
+            local targetCFrame = CFrame.new(camera.CFrame.Position, currentTarget.Position)
+            camera.CFrame = camera.CFrame:Lerp(targetCFrame, sensitivity)
+        end
+    end
+end)
+
+-- Use RightAlt as the destroy key
+local destroyKey = Enum.KeyCode.RightAlt
+
+destroyConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == destroyKey then
+        if inputBeganConnection1 then inputBeganConnection1:Disconnect() end
+        if inputEndedConnection1 then inputEndedConnection1:Disconnect() end
+        if renderSteppedConnection then renderSteppedConnection:Disconnect() end
+        if destroyConnection then destroyConnection:Disconnect() end
+        if screenGui then screenGui:Destroy() end
+        getgenv().InjectedAimBot = nil
+        print("Aimbot destroyed.")
+    end
+end)
+
+print("Aimbot with persistent lock-on and AltRight destroy injected successfully!")
