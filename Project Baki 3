@@ -1,784 +1,758 @@
------------------------------------------------
--- Unified Exploit GUI with Five Sections:
---   1. Auto Kill (Bosses)
---   2. Styles (Combat Styles)
---   3. Relics (Auto Teleport to Trinkets)
---   4. Players (Auto Kill Players)
---   5. Teleports (Teleport to NPCs)
---
--- The GUI opens with an animation and toggles when pressing RightAlt.
--- Tab buttons have rounded corners and a pressed color tween.
--- When switching tabs, the new content "pops" in by tweening its UIScale from 0.95 to 1.
---
--- Adjust paths and parameters as needed.
------------------------------------------------
+--------------------------------------------------------------------------------
+-- Xoa Hub --
 
--- SERVICES
+-- Sections:
+--   1. Auto Kill
+--   2. Styles
+--   3. Relics
+--   4. Players
+--   5. Teleports
+
+--------------------------------------------------------------------------------
+
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
-local ContextActionService = game:GetService("ContextActionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- UTILITY FUNCTION: Create an instance with given properties.
-local function create(className, properties, parent)
-    local inst = Instance.new(className)
-    for prop, value in pairs(properties) do
-        inst[prop] = value
-    end
-    if parent then inst.Parent = parent end
-    return inst
+--------------------------------------------------------------------------------
+-- Create the main ScreenGui
+--------------------------------------------------------------------------------
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "XoaHubGUI"
+ScreenGui.ResetOnSpawn = false  -- persist on reset
+ScreenGui.Parent = playerGui
+
+--------------------------------------------------------------------------------
+-- Main Window
+--------------------------------------------------------------------------------
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainFrame.Size = UDim2.new(0, 650, 0, 400)
+MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+--------------------------------------------------------------------------------
+-- Top Bar
+--------------------------------------------------------------------------------
+local TopBar = Instance.new("Frame")
+TopBar.Name = "TopBar"
+TopBar.Size = UDim2.new(1, 0, 0, 40)
+TopBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+TopBar.BorderSizePixel = 0
+TopBar.Parent = MainFrame
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "TitleLabel"
+TitleLabel.Size = UDim2.new(1, -40, 1, 0)
+TitleLabel.Position = UDim2.new(0, 10, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "Xoa Hub"
+TitleLabel.Font = Enum.Font.SourceSansBold
+TitleLabel.TextSize = 20
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = TopBar
+
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Size = UDim2.new(0, 40, 1, 0)
+CloseButton.Position = UDim2.new(1, -40, 0, 0)
+CloseButton.BackgroundColor3 = Color3.fromRGB(128, 128, 128)
+CloseButton.Text = "X"
+CloseButton.Font = Enum.Font.SourceSansBold
+CloseButton.TextSize = 24
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.BorderSizePixel = 0
+CloseButton.Parent = TopBar
+
+--------------------------------------------------------------------------------
+-- Left Sidebar
+--------------------------------------------------------------------------------
+local Sidebar = Instance.new("Frame")
+Sidebar.Name = "Sidebar"
+Sidebar.Size = UDim2.new(0, 150, 1, -40)
+Sidebar.Position = UDim2.new(0, 0, 0, 40)
+Sidebar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = MainFrame
+
+local SidebarLayout = Instance.new("UIListLayout")
+SidebarLayout.Padding = UDim.new(0, 5)
+SidebarLayout.FillDirection = Enum.FillDirection.Vertical
+SidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder
+SidebarLayout.Parent = Sidebar
+
+--------------------------------------------------------------------------------
+-- Content Area (right side)
+--------------------------------------------------------------------------------
+local ContentArea = Instance.new("Frame")
+ContentArea.Name = "ContentArea"
+ContentArea.Size = UDim2.new(1, -150, 1, -40)
+ContentArea.Position = UDim2.new(0, 150, 0, 40)
+ContentArea.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+ContentArea.BorderSizePixel = 0
+ContentArea.Parent = MainFrame
+
+--------------------------------------------------------------------------------
+-- Create Tab Button Utility
+--------------------------------------------------------------------------------
+local function createTabButton(tabName)
+    local btn = Instance.new("TextButton")
+    btn.Name = tabName.."Tab"
+    btn.Size = UDim2.new(1, -10, 0, 40)
+    btn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.SourceSans
+    btn.TextSize = 18
+    btn.Text = tabName
+    btn.BorderSizePixel = 0
+    btn.Parent = Sidebar
+    return btn
 end
 
------------------------------------------------
--- MAIN GUI SETUP
------------------------------------------------
-local ScreenGui = create("ScreenGui", {Name = "ExploitGUI", ResetOnSpawn = false}, playerGui)
-local MainWindow = create("Frame", {
-    Name = "MainWindow",
-    AnchorPoint = Vector2.new(0.5, 0.5),
-    Position = UDim2.new(0.5, 0, 0.5, 0),
-    Size = UDim2.new(0,600,0,400),
-    BackgroundColor3 = Color3.fromRGB(25,25,25),
-    BorderSizePixel = 0,
-}, ScreenGui)
-create("UICorner", {CornerRadius = UDim.new(0,10)}, MainWindow)
+-- Five tab buttons
+local autoKillTabButton  = createTabButton("Auto Kill")
+local stylesTabButton    = createTabButton("Styles")
+local relicsTabButton    = createTabButton("Relics")
+local playersTabButton   = createTabButton("Players")
+local teleportsTabButton = createTabButton("Teleports")
 
------------------------------------------------
--- TITLE BAR (DRAGGABLE & CLOSE BUTTON)
------------------------------------------------
-local TitleBar = create("Frame", {
-    Name = "TitleBar",
-    Size = UDim2.new(1,0,0,40),
-    BackgroundColor3 = Color3.fromRGB(35,35,35),
-    BorderSizePixel = 0,
-}, MainWindow)
-create("UICorner", {CornerRadius = UDim.new(0,10)}, TitleBar)
-local TitleLabel = create("TextLabel", {
-    Name = "TitleLabel",
-    Text = "Project baki 3 by Xoa",
-    Font = Enum.Font.SourceSansBold,
-    TextSize = 24,
-    TextColor3 = Color3.fromRGB(255,255,255),
-    BackgroundTransparency = 1,
-    Position = UDim2.new(0,10,0,0),
-    Size = UDim2.new(1,-50,1,0),
-    TextXAlignment = Enum.TextXAlignment.Left,
-}, TitleBar)
-local CloseButton = create("TextButton", {
-    Name = "CloseButton",
-    Text = "X",
-    Font = Enum.Font.SourceSansBold,
-    TextSize = 24,
-    TextColor3 = Color3.fromRGB(255,255,255),
-    BackgroundColor3 = Color3.fromRGB(200,50,50),
-    Size = UDim2.new(0,30,0,30),
-    Position = UDim2.new(1,-40,0,5),
-    BorderSizePixel = 0,
-}, TitleBar)
-create("UICorner", {CornerRadius = UDim.new(0,5)}, CloseButton)
-CloseButton.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
+local allTabButtons = {
+    autoKillTabButton,
+    stylesTabButton,
+    relicsTabButton,
+    playersTabButton,
+    teleportsTabButton
+}
 
------------------------------------------------
--- DRAGGABLE FUNCTIONALITY (via TitleBar)
------------------------------------------------
-local dragging = false
-local dragInput, dragStart, startPos
-TitleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainWindow.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
-        end)
-    end
-end)
-TitleBar.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        MainWindow.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
------------------------------------------------
--- LEFT SIDEBAR & TAB BUTTONS
------------------------------------------------
-local Sidebar = create("Frame", {
-    Name = "Sidebar",
-    Position = UDim2.new(0,0,0,40),
-    Size = UDim2.new(0,150,1,-40),
-    BackgroundColor3 = Color3.fromRGB(35,35,35),
-    BorderSizePixel = 0,
-}, MainWindow)
-create("UICorner", {CornerRadius = UDim.new(0,10)}, Sidebar)
-local TabButtonsContainer = create("Frame", {
-    Name = "TabButtonsContainer",
-    Size = UDim2.new(1,0,1,0),
-    BackgroundTransparency = 1,
-    Position = UDim2.new(0,0,0,0),
-}, Sidebar)
-local TabList = create("UIListLayout", {
-    Padding = UDim.new(0,5),
-    FillDirection = Enum.FillDirection.Vertical,
-    SortOrder = Enum.SortOrder.LayoutOrder,
-}, TabButtonsContainer)
-
--- Create five tab buttons.
-local AutoKillTabButton = create("TextButton", {
-    Name = "AutoKillTabButton",
-    Text = "Auto Kill",
-    Font = Enum.Font.SourceSans,
-    TextSize = 20,
-    TextColor3 = Color3.fromRGB(255,255,255),
-    BackgroundColor3 = Color3.fromRGB(35,35,35),
-    Size = UDim2.new(1,-10,0,40),
-    LayoutOrder = 1,
-}, TabButtonsContainer)
-create("UICorner", {CornerRadius = UDim.new(0,5)}, AutoKillTabButton)
-
-local StylesTabButton = create("TextButton", {
-    Name = "StylesTabButton",
-    Text = "Styles",
-    Font = Enum.Font.SourceSans,
-    TextSize = 20,
-    TextColor3 = Color3.fromRGB(255,255,255),
-    BackgroundColor3 = Color3.fromRGB(35,35,35),
-    Size = UDim2.new(1,-10,0,40),
-    LayoutOrder = 2,
-}, TabButtonsContainer)
-create("UICorner", {CornerRadius = UDim.new(0,5)}, StylesTabButton)
-
-local RelicsTabButton = create("TextButton", {
-    Name = "RelicsTabButton",
-    Text = "Relics",
-    Font = Enum.Font.SourceSans,
-    TextSize = 20,
-    TextColor3 = Color3.fromRGB(255,255,255),
-    BackgroundColor3 = Color3.fromRGB(35,35,35),
-    Size = UDim2.new(1,-10,0,40),
-    LayoutOrder = 3,
-}, TabButtonsContainer)
-create("UICorner", {CornerRadius = UDim.new(0,5)}, RelicsTabButton)
-
-local PlayersTabButton = create("TextButton", {
-    Name = "PlayersTabButton",
-    Text = "Players",
-    Font = Enum.Font.SourceSans,
-    TextSize = 20,
-    TextColor3 = Color3.fromRGB(255,255,255),
-    BackgroundColor3 = Color3.fromRGB(35,35,35),
-    Size = UDim2.new(1,-10,0,40),
-    LayoutOrder = 4,
-}, TabButtonsContainer)
-create("UICorner", {CornerRadius = UDim.new(0,5)}, PlayersTabButton)
-
-local TeleportsTabButton = create("TextButton", {
-    Name = "TeleportsTabButton",
-    Text = "Teleports",
-    Font = Enum.Font.SourceSans,
-    TextSize = 20,
-    TextColor3 = Color3.fromRGB(255,255,255),
-    BackgroundColor3 = Color3.fromRGB(35,35,35),
-    Size = UDim2.new(1,-10,0,40),
-    LayoutOrder = 5,
-}, TabButtonsContainer)
-create("UICorner", {CornerRadius = UDim.new(0,5)}, TeleportsTabButton)
-
-local tabButtons = {AutoKillTabButton, StylesTabButton, RelicsTabButton, PlayersTabButton, TeleportsTabButton}
-local function setTabSelected(selectedButton)
-    for _, button in ipairs(tabButtons) do
-        if button == selectedButton then
-            TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(50,50,50)}):Play()
+local function highlightTab(selected)
+    for _, btn in ipairs(allTabButtons) do
+        if btn == selected then
+            btn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
         else
-            TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(35,35,35)}):Play()
+            btn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
         end
     end
 end
 
------------------------------------------------
--- CONTENT AREA (Container for tab content)
------------------------------------------------
-local ContentArea = create("Frame", {
-    Name = "ContentArea",
-    Position = UDim2.new(0,150,0,40),
-    Size = UDim2.new(1,-150,1,-40),
-    BackgroundColor3 = Color3.fromRGB(25,25,25),
-    BorderSizePixel = 0,
-}, MainWindow)
-create("UICorner", {CornerRadius = UDim.new(0,10)}, ContentArea)
-
--- Create content frames for each tab.
-local AutoKillContent = create("Frame", {
-    Name = "AutoKillContent",
-    Size = UDim2.new(1,0,1,0),
-    BackgroundTransparency = 1,
-    Visible = true,
-}, ContentArea)
-local StylesContent = create("Frame", {
-    Name = "StylesContent",
-    Size = UDim2.new(1,0,1,0),
-    BackgroundTransparency = 1,
-    Visible = false,
-}, ContentArea)
-local RelicsContent = create("Frame", {
-    Name = "RelicsContent",
-    Size = UDim2.new(1,0,1,0),
-    BackgroundTransparency = 1,
-    Visible = false,
-}, ContentArea)
-local PlayersContent = create("Frame", {
-    Name = "PlayersContent",
-    Size = UDim2.new(1,0,1,0),
-    BackgroundTransparency = 1,
-    Visible = false,
-}, ContentArea)
-local TeleportsContent = create("Frame", {
-    Name = "TeleportsContent",
-    Size = UDim2.new(1,0,1,0),
-    BackgroundTransparency = 1,
-    Visible = false,
-}, ContentArea)
-
--- "Pop" animation for content using UIScale tween.
-local function switchTab(newFrame)
-    for _, child in ipairs(ContentArea:GetChildren()) do
-        if child:IsA("Frame") then child.Visible = false end
-    end
-    newFrame.Visible = true
-    local scaleObj = newFrame:FindFirstChild("UIScale") or create("UIScale", {Scale = 0.95}, newFrame)
-    scaleObj.Scale = 0.95
-    TweenService:Create(scaleObj, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = 1}):Play()
+--------------------------------------------------------------------------------
+-- Section Frames
+--------------------------------------------------------------------------------
+local function createSectionFrame(sectionName)
+    local frame = Instance.new("Frame")
+    frame.Name = sectionName.."Frame"
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    frame.BorderSizePixel = 0
+    frame.Visible = false
+    frame.Parent = ContentArea
+    return frame
 end
 
------------------------------------------------
--- TAB 1: AUTO KILL (Bosses) SECTION CONTENT
------------------------------------------------
-local AK_SearchBar = create("TextBox", {
-    Name = "AK_SearchBar",
-    Size = UDim2.new(1, -40, 0, 30),
-    Position = UDim2.new(0,20,0,10),
-    PlaceholderText = "Search Bosses...",
-    Text = "",
-    Font = Enum.Font.SourceSans,
-    TextSize = 18,
-    TextColor3 = Color3.fromRGB(255,255,255),
-    BackgroundColor3 = Color3.fromRGB(35,35,35),
-    BorderSizePixel = 0,
-}, AutoKillContent)
-create("UICorner", {CornerRadius = UDim.new(0,5)}, AK_SearchBar)
+local autoKillFrame  = createSectionFrame("AutoKill")
+local stylesFrame    = createSectionFrame("Styles")
+local relicsFrame    = createSectionFrame("Relics")
+local playersFrame   = createSectionFrame("Players")
+local teleportsFrame = createSectionFrame("Teleports")
 
-local EveryBossButton = create("TextButton", {
-    Name = "EveryBossButton",
-    Text = "Every Boss: OFF",
-    Font = Enum.Font.SourceSans,
-    TextSize = 20,
-    TextColor3 = Color3.fromRGB(255,255,255),
-    BackgroundColor3 = Color3.fromRGB(255,50,50),
-    Size = UDim2.new(1, -40, 0, 40),
-    Position = UDim2.new(0,20,0,50),
-    BorderSizePixel = 0,
-}, AutoKillContent)
-create("UICorner", {CornerRadius = UDim.new(0,5)}, EveryBossButton)
+local allSectionFrames = {
+    autoKillFrame,
+    stylesFrame,
+    relicsFrame,
+    playersFrame,
+    teleportsFrame
+}
 
-local BossTogglesScrollingFrame = create("ScrollingFrame", {
-    Name = "BossTogglesScrollingFrame",
-    Size = UDim2.new(1, 0, 1, -100),
-    Position = UDim2.new(0, 0, 0, 100),
-    BackgroundTransparency = 1,
-    ScrollBarThickness = 5,
-    ScrollBarImageColor3 = Color3.fromRGB(255,50,50),
-}, AutoKillContent)
-BossTogglesScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-local BossUIList = create("UIListLayout", {
-    Padding = UDim.new(0,5),
-    FillDirection = Enum.FillDirection.Vertical,
-    SortOrder = Enum.SortOrder.LayoutOrder,
-}, BossTogglesScrollingFrame)
-BossUIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    BossTogglesScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, BossUIList.AbsoluteContentSize.Y)
-end)
+local function showSectionFrame(selectedFrame)
+    for _, frame in ipairs(allSectionFrames) do
+        frame.Visible = (frame == selectedFrame)
+    end
+end
 
+--------------------------------------------------------------------------------
+-- 1) AUTO KILL SECTION
+--------------------------------------------------------------------------------
 local autoBossNames = {
     "Kiyosumi Kato", "Retsu", "Dorian", "Sikorsky", "Spec", "Doyle",
     "Yanagi", "Yasha Ape Jr.", "Raian", "KiryuKazuma", "Pickle",
     "Musashi", "Predator", "Armstrong", "Jason Voorhees",
     "Goro Majima, Mad Dog of Shimano", "Jetstream Sam", "Headless One",
-    "Slayer", "Sukune", "Leatherface", "The Protagonist", "Yasha Ape", "AdamSmasher"
+    "Slayer", "Sukune", "Leatherface", "The Protagonist", "Yasha Ape",
+    "AdamSmasher"
 }
+
 local autoBossToggles = {}
 local autoBossLoopRunning = {}
 local autoBossButtons = {}
+local allBossesOn = false
+
 for _, boss in ipairs(autoBossNames) do
     autoBossToggles[boss] = false
     autoBossLoopRunning[boss] = false
 end
 
-for _, boss in ipairs(autoBossNames) do
-    local bossButton = create("TextButton", {
-        Name = "BossButton_" .. boss,
-        Text = boss .. ": OFF",
-        Font = Enum.Font.SourceSans,
-        TextSize = 20,
-        TextColor3 = Color3.fromRGB(255,255,255),
-        BackgroundColor3 = Color3.fromRGB(255,50,50),
-        Size = UDim2.new(1, -20, 0, 40),
-        LayoutOrder = 1,
-    }, BossTogglesScrollingFrame)
-    create("UICorner", {CornerRadius = UDim.new(0,5)}, bossButton)
-    autoBossButtons[boss] = bossButton
+local autoKillTitle = Instance.new("TextLabel")
+autoKillTitle.Size = UDim2.new(1, 0, 0, 30)
+autoKillTitle.Position = UDim2.new(0, 10, 0, 10)
+autoKillTitle.BackgroundTransparency = 1
+autoKillTitle.Text = "Auto Kill"
+autoKillTitle.TextColor3 = Color3.fromRGB(255,255,255)
+autoKillTitle.Font = Enum.Font.SourceSansBold
+autoKillTitle.TextSize = 20
+autoKillTitle.Parent = autoKillFrame
 
-    bossButton.MouseButton1Click:Connect(function()
+local AK_SearchBar = Instance.new("TextBox")
+AK_SearchBar.Name = "AK_SearchBar"
+AK_SearchBar.Size = UDim2.new(0, 200, 0, 30)
+AK_SearchBar.Position = UDim2.new(0, 10, 0, 50)
+AK_SearchBar.PlaceholderText = "Search Bosses..."
+AK_SearchBar.Text = ""
+AK_SearchBar.Font = Enum.Font.SourceSans
+AK_SearchBar.TextSize = 18
+AK_SearchBar.TextColor3 = Color3.fromRGB(255,255,255)
+AK_SearchBar.BackgroundColor3 = Color3.fromRGB(60,60,60)
+AK_SearchBar.BorderSizePixel = 0
+AK_SearchBar.Parent = autoKillFrame
+
+local EveryBossButton = Instance.new("TextButton")
+EveryBossButton.Name = "EveryBossButton"
+EveryBossButton.Text = "Every Boss: OFF"
+EveryBossButton.Font = Enum.Font.SourceSans
+EveryBossButton.TextSize = 18
+EveryBossButton.TextColor3 = Color3.fromRGB(255,255,255)
+EveryBossButton.BackgroundColor3 = Color3.fromRGB(80,80,80)
+EveryBossButton.Size = UDim2.new(0, 200, 0, 30)
+EveryBossButton.Position = UDim2.new(0, 10, 0, 90)
+EveryBossButton.BorderSizePixel = 0
+EveryBossButton.Parent = autoKillFrame
+
+local BossScroll = Instance.new("ScrollingFrame")
+BossScroll.Name = "BossScroll"
+BossScroll.Size = UDim2.new(0, 220, 0, 220)
+BossScroll.Position = UDim2.new(0, 10, 0, 130)
+BossScroll.BackgroundTransparency = 1
+BossScroll.ScrollBarThickness = 5
+BossScroll.ScrollBarImageColor3 = Color3.fromRGB(255,100,0)
+BossScroll.Parent = autoKillFrame
+BossScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+
+local BossUIList = Instance.new("UIListLayout")
+BossUIList.Padding = UDim.new(0, 5)
+BossUIList.FillDirection = Enum.FillDirection.Vertical
+BossUIList.SortOrder = Enum.SortOrder.LayoutOrder
+BossUIList.Parent = BossScroll
+BossUIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    BossScroll.CanvasSize = UDim2.new(0,0,0,BossUIList.AbsoluteContentSize.Y)
+end)
+
+local function createBossButton(boss)
+    local btn = Instance.new("TextButton")
+    btn.Name = "BossBtn_"..boss
+    btn.Size = UDim2.new(1, -10, 0, 30)
+    btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Font = Enum.Font.SourceSans
+    btn.TextSize = 18
+    btn.Text = boss.." : OFF"
+    btn.BorderSizePixel = 0
+    btn.Parent = BossScroll
+    
+    btn.MouseButton1Click:Connect(function()
         autoBossToggles[boss] = not autoBossToggles[boss]
         if autoBossToggles[boss] then
-            bossButton.Text = boss .. ": ON"
+            btn.Text = boss.." : ON"
+            btn.BackgroundColor3 = Color3.fromRGB(255,100,0)
             if not autoBossLoopRunning[boss] then
                 autoBossLoopRunning[boss] = true
                 task.spawn(function()
                     while autoBossToggles[boss] do
-                        local playerObj = workspace.Game.Players:FindFirstChild(boss)
-                        if playerObj and playerObj:FindFirstChild("Humanoid") then
-                            local args = {"Skill", playerObj.Humanoid}
+                        local pObj = workspace.Game.Players:FindFirstChild(boss)
+                        if pObj and pObj:FindFirstChild("Humanoid") then
+                            local args = {"Skill", pObj.Humanoid}
                             ReplicatedStorage.Remotes.ClientToServer.BasicCombat:FireServer(unpack(args))
                         end
-                        task.wait(0)
+                        task.wait()
                     end
                     autoBossLoopRunning[boss] = false
                 end)
             end
         else
-            bossButton.Text = boss .. ": OFF"
+            btn.Text = boss.." : OFF"
+            btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
         end
     end)
+    autoBossButtons[boss] = btn
+end
+
+for _, boss in ipairs(autoBossNames) do
+    createBossButton(boss)
 end
 
 EveryBossButton.MouseButton1Click:Connect(function()
-    local allBossesOn = not _G.allBossesOn
-    _G.allBossesOn = allBossesOn
-    if allBossesOn then
-        EveryBossButton.Text = "Every Boss: ON"
-    else
-        EveryBossButton.Text = "Every Boss: OFF"
-    end
+    allBossesOn = not allBossesOn
+    EveryBossButton.Text = allBossesOn and "Every Boss: ON" or "Every Boss: OFF"
+    EveryBossButton.BackgroundColor3 = allBossesOn and Color3.fromRGB(255,100,0) or Color3.fromRGB(80,80,80)
+    
     for _, boss in ipairs(autoBossNames) do
         autoBossToggles[boss] = allBossesOn
-        if allBossesOn then
-            autoBossButtons[boss].Text = boss .. ": ON"
-            if not autoBossLoopRunning[boss] then
-                autoBossLoopRunning[boss] = true
-                task.spawn(function()
-                    while autoBossToggles[boss] do
-                        local playerObj = workspace.Game.Players:FindFirstChild(boss)
-                        if playerObj and playerObj:FindFirstChild("Humanoid") then
-                            local args = {"Skill", playerObj.Humanoid}
-                            ReplicatedStorage.Remotes.ClientToServer.BasicCombat:FireServer(unpack(args))
+        local btn = autoBossButtons[boss]
+        if btn then
+            if allBossesOn then
+                btn.Text = boss.." : ON"
+                btn.BackgroundColor3 = Color3.fromRGB(255,100,0)
+                if not autoBossLoopRunning[boss] then
+                    autoBossLoopRunning[boss] = true
+                    task.spawn(function()
+                        while autoBossToggles[boss] do
+                            local pObj = workspace.Game.Players:FindFirstChild(boss)
+                            if pObj and pObj:FindFirstChild("Humanoid") then
+                                local args = {"Skill", pObj.Humanoid}
+                                ReplicatedStorage.Remotes.ClientToServer.BasicCombat:FireServer(unpack(args))
+                            end
+                            task.wait()
                         end
-                        task.wait(0)
-                    end
-                    autoBossLoopRunning[boss] = false
-                end)
+                        autoBossLoopRunning[boss] = false
+                    end)
+                end
+            else
+                btn.Text = boss.." : OFF"
+                btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
             end
-        else
-            autoBossButtons[boss].Text = boss .. ": OFF"
         end
     end
 end)
 
 AK_SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
     local query = AK_SearchBar.Text:lower()
-    for _, button in ipairs(BossTogglesScrollingFrame:GetChildren()) do
-        if button:IsA("TextButton") then
-            local bName = button.Name:sub(12):lower()
-            button.Visible = (query == "" or bName:find(query))
+    for _, child in ipairs(BossScroll:GetChildren()) do
+        if child:IsA("TextButton") then
+            local bName = child.Name:sub(8):lower()
+            child.Visible = (query == "" or bName:find(query))
         end
     end
 end)
 
------------------------------------------------
--- TAB 2: STYLES SECTION CONTENT
------------------------------------------------
-local StylesContent = create("Frame", {
-    Name = "StylesContent",
-    Size = UDim2.new(1,0,1,0),
-    BackgroundTransparency = 1,
-    Visible = false,
-}, ContentArea)
+--------------------------------------------------------------------------------
+-- 2) STYLES SECTION
+--------------------------------------------------------------------------------
+local stylesTitle = Instance.new("TextLabel")
+stylesTitle.Size = UDim2.new(1, 0, 0, 30)
+stylesTitle.Position = UDim2.new(0, 10, 0, 10)
+stylesTitle.BackgroundTransparency = 1
+stylesTitle.Text = "Styles"
+stylesTitle.TextColor3 = Color3.fromRGB(255,255,255)
+stylesTitle.Font = Enum.Font.SourceSansBold
+stylesTitle.TextSize = 20
+stylesTitle.Parent = stylesFrame
 
-local StyleSearchBar = create("TextBox", {
-    Name = "StyleSearchBar",
-    Size = UDim2.new(1, -40, 0, 30),
-    Position = UDim2.new(0, 20, 0, 10),
-    PlaceholderText = "Search Trainers...",
-    Text = "",
-    Font = Enum.Font.SourceSans,
-    TextSize = 18,
-    TextColor3 = Color3.fromRGB(255,255,255),
-    BackgroundColor3 = Color3.fromRGB(35,35,35),
-    BorderSizePixel = 0,
-}, StylesContent)
-create("UICorner", {CornerRadius = UDim.new(0,5)}, StyleSearchBar)
+local StyleSearchBar = Instance.new("TextBox")
+StyleSearchBar.Name = "StyleSearchBar"
+StyleSearchBar.Size = UDim2.new(0, 200, 0, 30)
+StyleSearchBar.Position = UDim2.new(0, 10, 0, 50)
+StyleSearchBar.PlaceholderText = "Search Trainers..."
+StyleSearchBar.Text = ""
+StyleSearchBar.Font = Enum.Font.SourceSans
+StyleSearchBar.TextSize = 18
+StyleSearchBar.TextColor3 = Color3.fromRGB(255,255,255)
+StyleSearchBar.BackgroundColor3 = Color3.fromRGB(60,60,60)
+StyleSearchBar.BorderSizePixel = 0
+StyleSearchBar.Parent = stylesFrame
 
-local TrainerScrollingFrame = create("ScrollingFrame", {
-    Name = "TrainerScrollingFrame",
-    Size = UDim2.new(1, 0, 1, -50),
-    Position = UDim2.new(0, 0, 0, 50),
-    BackgroundTransparency = 1,
-    ScrollBarThickness = 5,
-    ScrollBarImageColor3 = Color3.fromRGB(255,50,50),
-}, StylesContent)
-TrainerScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-local TrainerUIList = create("UIListLayout", {
-    Padding = UDim.new(0,5),
-    FillDirection = Enum.FillDirection.Vertical,
-    SortOrder = Enum.SortOrder.LayoutOrder,
-}, TrainerScrollingFrame)
+local TrainerScroll = Instance.new("ScrollingFrame")
+TrainerScroll.Name = "TrainerScroll"
+TrainerScroll.Size = UDim2.new(0, 220, 0, 250)
+TrainerScroll.Position = UDim2.new(0, 10, 0, 90)
+TrainerScroll.BackgroundTransparency = 1
+TrainerScroll.ScrollBarThickness = 5
+TrainerScroll.ScrollBarImageColor3 = Color3.fromRGB(255,100,0)
+TrainerScroll.Parent = stylesFrame
+TrainerScroll.CanvasSize = UDim2.new(0,0,0,0)
+
+local TrainerUIList = Instance.new("UIListLayout")
+TrainerUIList.Padding = UDim.new(0,5)
+TrainerUIList.FillDirection = Enum.FillDirection.Vertical
+TrainerUIList.SortOrder = Enum.SortOrder.LayoutOrder
+TrainerUIList.Parent = TrainerScroll
 TrainerUIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    TrainerScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, TrainerUIList.AbsoluteContentSize.Y)
+    TrainerScroll.CanvasSize = UDim2.new(0,0,0,TrainerUIList.AbsoluteContentSize.Y)
 end)
 
 local function equipStyle(trainerName)
-    local args = { [1] = trainerName }
-    ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("ClientToServer"):WaitForChild("Quest"):InvokeServer(unpack(args))
+    local questRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("ClientToServer"):WaitForChild("Quest")
+    questRemote:InvokeServer(trainerName)
 end
 
-local trainersFolder = workspace.Game and workspace.Game:FindFirstChild("Trainers")
+local trainersFolder = workspace.Game:FindFirstChild("Trainers")
 if trainersFolder then
     for _, trainer in ipairs(trainersFolder:GetChildren()) do
         if trainer:IsA("Model") or trainer:IsA("Folder") then
             local tName = trainer.Name
-            local trainerButton = create("TextButton", {
-                Name = "TrainerButton_" .. tName,
-                Text = tName,
-                Font = Enum.Font.SourceSans,
-                TextSize = 20,
-                TextColor3 = Color3.fromRGB(255,255,255),
-                BackgroundColor3 = Color3.fromRGB(255,50,50),
-                Size = UDim2.new(1, -20, 0, 40),
-                LayoutOrder = 1,
-            }, TrainerScrollingFrame)
-            create("UICorner", {CornerRadius = UDim.new(0,5)}, trainerButton)
-            trainerButton.MouseButton1Click:Connect(function() equipStyle(tName) end)
+            local tBtn = Instance.new("TextButton")
+            tBtn.Name = "TrainerBtn_"..tName
+            tBtn.Text = tName
+            tBtn.Font = Enum.Font.SourceSans
+            tBtn.TextSize = 18
+            tBtn.TextColor3 = Color3.fromRGB(255,255,255)
+            tBtn.BackgroundColor3 = Color3.fromRGB(255,100,100)
+            tBtn.Size = UDim2.new(1, -10, 0, 30)
+            tBtn.BorderSizePixel = 0
+            tBtn.Parent = TrainerScroll
+            
+            tBtn.MouseButton1Click:Connect(function()
+                equipStyle(tName)
+            end)
         end
     end
 end
 
 StyleSearchBar:GetPropertyChangedSignal("Text"):Connect(function()
     local query = StyleSearchBar.Text:lower()
-    for _, trainerButton in ipairs(TrainerScrollingFrame:GetChildren()) do
-        if trainerButton:IsA("TextButton") then
-            local name = trainerButton.Name:sub(15):lower()
-            trainerButton.Visible = (query == "" or name:find(query))
+    for _, child in ipairs(TrainerScroll:GetChildren()) do
+        if child:IsA("TextButton") then
+            local name = child.Name:sub(11):lower()
+            child.Visible = (query == "" or name:find(query))
         end
     end
 end)
 
------------------------------------------------
--- TAB 3: RELICS SECTION CONTENT
------------------------------------------------
-local RelicsContent = create("Frame", {
-    Name = "RelicsContent",
-    Size = UDim2.new(1,0,1,0),
-    BackgroundTransparency = 1,
-    Visible = false,
-}, ContentArea)
+--------------------------------------------------------------------------------
+-- 3) RELICS SECTION
+--------------------------------------------------------------------------------
+local relicsTitle = Instance.new("TextLabel")
+relicsTitle.Size = UDim2.new(1, 0, 0, 30)
+relicsTitle.Position = UDim2.new(0, 10, 0, 10)
+relicsTitle.BackgroundTransparency = 1
+relicsTitle.Text = "Relics"
+relicsTitle.TextColor3 = Color3.fromRGB(255,255,255)
+relicsTitle.Font = Enum.Font.SourceSansBold
+relicsTitle.TextSize = 20
+relicsTitle.Parent = relicsFrame
 
-local RelicsToggleButton = create("TextButton", {
-    Name = "RelicsToggleButton",
-    Text = "Enable Relics Teleport: OFF",
-    Font = Enum.Font.SourceSans,
-    TextSize = 20,
-    TextColor3 = Color3.fromRGB(255,255,255),
-    BackgroundColor3 = Color3.fromRGB(255,50,50),
-    Size = UDim2.new(1, -40, 0, 40),
-    Position = UDim2.new(0, 20, 0, 10),
-    BorderSizePixel = 0,
-}, RelicsContent)
-create("UICorner", {CornerRadius = UDim.new(0,5)}, RelicsToggleButton)
+local relicToggle = Instance.new("TextButton")
+relicToggle.Name = "RelicsToggle"
+relicToggle.Size = UDim2.new(0, 250, 0, 30)
+relicToggle.Position = UDim2.new(0, 10, 0, 50)
+relicToggle.BackgroundColor3 = Color3.fromRGB(80,80,80)
+relicToggle.TextColor3 = Color3.fromRGB(255,255,255)
+relicToggle.Font = Enum.Font.SourceSans
+relicToggle.TextSize = 18
+relicToggle.Text = "Enable Relics Teleport: OFF"
+relicToggle.BorderSizePixel = 0
+relicToggle.Parent = relicsFrame
 
 local relicTeleportEnabled = false
 local relicLoopRunning = false
-RelicsToggleButton.MouseButton1Click:Connect(function()
+
+relicToggle.MouseButton1Click:Connect(function()
     relicTeleportEnabled = not relicTeleportEnabled
-    if relicTeleportEnabled then
-        RelicsToggleButton.Text = "Enable Relics Teleport: ON"
-        if not relicLoopRunning then
-            relicLoopRunning = true
-            task.spawn(function()
-                while relicTeleportEnabled do
-                    local spawnedTrinkets = workspace.Game.Trinkets and workspace.Game.Trinkets:FindFirstChild("Spawned")
-                    if spawnedTrinkets then
-                        for _, relic in ipairs(spawnedTrinkets:GetChildren()) do
-                            if relic:IsA("BasePart") and relic:FindFirstChildOfClass("TouchTransmitter") then
-                                local character = player.Character
-                                if character then
-                                    local hrp = character:FindFirstChild("HumanoidRootPart")
-                                    if hrp then
-                                        local originalCFrame = hrp.CFrame
-                                        hrp.CFrame = relic.CFrame + Vector3.new(0,3,0)
-                                        local startTime = tick()
-                                        while relic and relic.Parent and (tick() - startTime < 10) and relicTeleportEnabled do
-                                            task.wait(0.1)
-                                        end
-                                        hrp.CFrame = originalCFrame
-                                        task.wait(1)
+    relicToggle.Text = relicTeleportEnabled and "Enable Relics Teleport: ON" or "Enable Relics Teleport: OFF"
+    relicToggle.BackgroundColor3 = relicTeleportEnabled and Color3.fromRGB(255,100,0) or Color3.fromRGB(80,80,80)
+    
+    if relicTeleportEnabled and not relicLoopRunning then
+        relicLoopRunning = true
+        task.spawn(function()
+            while relicTeleportEnabled do
+                local spawnedTrinkets = workspace.Game.Trinkets and workspace.Game.Trinkets:FindFirstChild("Spawned")
+                if spawnedTrinkets then
+                    for _, relic in ipairs(spawnedTrinkets:GetChildren()) do
+                        if relic:IsA("BasePart") and relic:FindFirstChildOfClass("TouchTransmitter") then
+                            local char = player.Character
+                            if char then
+                                local hrp = char:FindFirstChild("HumanoidRootPart")
+                                if hrp then
+                                    local originalCFrame = hrp.CFrame
+                                    hrp.CFrame = relic.CFrame + Vector3.new(0,3,0)
+                                    local startTime = tick()
+                                    while relic and relic.Parent and (tick()-startTime<10) and relicTeleportEnabled do
+                                        task.wait(0.1)
                                     end
+                                    hrp.CFrame = originalCFrame
+                                    task.wait(1)
                                 end
                             end
                         end
                     end
-                    task.wait(1)
                 end
-                relicLoopRunning = false
-            end)
-        end
-    else
-        RelicsToggleButton.Text = "Enable Relics Teleport: OFF"
+                task.wait(1)
+            end
+            relicLoopRunning = false
+        end)
     end
 end)
 
------------------------------------------------
--- TAB 4: PLAYERS SECTION (Auto Kill Players)
------------------------------------------------
-local PlayersContent = create("Frame", {
-    Name = "PlayersContent",
-    Size = UDim2.new(1,0,1,0),
-    BackgroundTransparency = 1,
-    Visible = false,
-}, ContentArea)
-
-local P_SearchBar = create("TextBox", {
-    Name = "P_SearchBar",
-    Size = UDim2.new(1, -40, 0, 30),
-    Position = UDim2.new(0, 20, 0, 10),
-    PlaceholderText = "Search Players...",
-    Text = "",
-    Font = Enum.Font.SourceSans,
-    TextSize = 18,
-    TextColor3 = Color3.fromRGB(255,255,255),
-    BackgroundColor3 = Color3.fromRGB(35,35,35),
-    BorderSizePixel = 0,
-}, PlayersContent)
-create("UICorner", {CornerRadius = UDim.new(0,5)}, P_SearchBar)
-
-local P_ScrollingFrame = create("ScrollingFrame", {
-    Name = "P_ScrollingFrame",
-    Size = UDim2.new(1, 0, 1, -50),
-    Position = UDim2.new(0, 0, 0, 50),
-    BackgroundTransparency = 1,
-    ScrollBarThickness = 5,
-    ScrollBarImageColor3 = Color3.fromRGB(255,50,50),
-}, PlayersContent)
-P_ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-local P_UIList = create("UIListLayout", {
-    Padding = UDim.new(0,5),
-    FillDirection = Enum.FillDirection.Vertical,
-    SortOrder = Enum.SortOrder.LayoutOrder,
-}, P_ScrollingFrame)
-P_UIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    P_ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, P_UIList.AbsoluteContentSize.Y)
-end)
-
+--------------------------------------------------------------------------------
+-- 4) PLAYERS SECTION
+--------------------------------------------------------------------------------
 local playerAutoKillToggles = {}
 local playerAutoKillLoopRunning = {}
 local playerButtons = {}
 
-local function updatePlayerList()
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= player then
-            -- Check in P_ScrollingFrame for the existing button.
-            if not P_ScrollingFrame:FindFirstChild("PlayerButton_" .. p.Name) then
-                local playerButton = create("TextButton", {
-                    Name = "PlayerButton_" .. p.Name,
-                    Text = p.Name .. ": OFF",
-                    Font = Enum.Font.SourceSans,
-                    TextSize = 20,
-                    TextColor3 = Color3.fromRGB(255,255,255),
-                    BackgroundColor3 = Color3.fromRGB(255,50,50),
-                    Size = UDim2.new(1, -20, 0, 40),
-                    LayoutOrder = 1,
-                }, P_ScrollingFrame)
-                create("UICorner", {CornerRadius = UDim.new(0,5)}, playerButton)
-                playerButtons[p.Name] = playerButton
-                playerAutoKillToggles[p.Name] = false
-                playerAutoKillLoopRunning[p.Name] = false
-                playerButton.MouseButton1Click:Connect(function()
-                    playerAutoKillToggles[p.Name] = not playerAutoKillToggles[p.Name]
-                    if playerAutoKillToggles[p.Name] then
-                        playerButton.Text = p.Name .. ": ON"
-                        if not playerAutoKillLoopRunning[p.Name] then
-                            playerAutoKillLoopRunning[p.Name] = true
-                            task.spawn(function()
-                                while playerAutoKillToggles[p.Name] do
-                                    local targetCharacter = p.Character
-                                    if targetCharacter and targetCharacter:FindFirstChild("Humanoid") then
-                                        local args = {"Skill", targetCharacter.Humanoid}
-                                        ReplicatedStorage.Remotes.ClientToServer.BasicCombat:FireServer(unpack(args))
-                                    end
-                                    task.wait(0)
-                                end
-                                playerAutoKillLoopRunning[p.Name] = false
-                            end)
+local playersTitle = Instance.new("TextLabel")
+playersTitle.Size = UDim2.new(1, 0, 0, 30)
+playersTitle.Position = UDim2.new(0, 10, 0, 10)
+playersTitle.BackgroundTransparency = 1
+playersTitle.Text = "Players"
+playersTitle.TextColor3 = Color3.fromRGB(255,255,255)
+playersTitle.Font = Enum.Font.SourceSansBold
+playersTitle.TextSize = 20
+playersTitle.Parent = playersFrame
+
+local P_SearchBar = Instance.new("TextBox")
+P_SearchBar.Name = "P_SearchBar"
+P_SearchBar.Size = UDim2.new(0, 200, 0, 30)
+P_SearchBar.Position = UDim2.new(0, 10, 0, 50)
+P_SearchBar.PlaceholderText = "Search Players..."
+P_SearchBar.Text = ""
+P_SearchBar.Font = Enum.Font.SourceSans
+P_SearchBar.TextSize = 18
+P_SearchBar.TextColor3 = Color3.fromRGB(255,255,255)
+P_SearchBar.BackgroundColor3 = Color3.fromRGB(60,60,60)
+P_SearchBar.BorderSizePixel = 0
+P_SearchBar.Parent = playersFrame
+
+local P_Scroll = Instance.new("ScrollingFrame")
+P_Scroll.Name = "P_Scroll"
+P_Scroll.Size = UDim2.new(0, 220, 0, 250)
+P_Scroll.Position = UDim2.new(0, 10, 0, 90)
+P_Scroll.BackgroundTransparency = 1
+P_Scroll.ScrollBarThickness = 5
+P_Scroll.ScrollBarImageColor3 = Color3.fromRGB(255,100,0)
+P_Scroll.Parent = playersFrame
+P_Scroll.CanvasSize = UDim2.new(0,0,0,0)
+
+local P_ListLayout = Instance.new("UIListLayout")
+P_ListLayout.Padding = UDim.new(0,5)
+P_ListLayout.FillDirection = Enum.FillDirection.Vertical
+P_ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+P_ListLayout.Parent = P_Scroll
+P_ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    P_Scroll.CanvasSize = UDim2.new(0,0,0,P_ListLayout.AbsoluteContentSize.Y)
+end)
+
+local function addPlayerButton(plr)
+    if plr == player then return end
+    if P_Scroll:FindFirstChild("PlayerButton_"..plr.Name) then return end
+    
+    local btn = Instance.new("TextButton")
+    btn.Name = "PlayerButton_"..plr.Name
+    btn.Text = plr.Name.." : OFF"
+    btn.Font = Enum.Font.SourceSans
+    btn.TextSize = 18
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+    btn.Size = UDim2.new(1, -10, 0, 30)
+    btn.BorderSizePixel = 0
+    btn.Parent = P_Scroll
+    
+    playerAutoKillToggles[plr.Name] = false
+    playerAutoKillLoopRunning[plr.Name] = false
+    
+    btn.MouseButton1Click:Connect(function()
+        local toggled = not playerAutoKillToggles[plr.Name]
+        playerAutoKillToggles[plr.Name] = toggled
+        if toggled then
+            btn.Text = plr.Name.." : ON"
+            btn.BackgroundColor3 = Color3.fromRGB(255,100,0)
+            if not playerAutoKillLoopRunning[plr.Name] then
+                playerAutoKillLoopRunning[plr.Name] = true
+                task.spawn(function()
+                    while playerAutoKillToggles[plr.Name] do
+                        local targetChar = plr.Character
+                        if targetChar and targetChar:FindFirstChild("Humanoid") then
+                            local args = {"Skill", targetChar.Humanoid}
+                            ReplicatedStorage.Remotes.ClientToServer.BasicCombat:FireServer(unpack(args))
                         end
-                    else
-                        playerButton.Text = p.Name .. ": OFF"
+                        task.wait()
                     end
+                    playerAutoKillLoopRunning[plr.Name] = false
                 end)
+            end
+        else
+            btn.Text = plr.Name.." : OFF"
+            btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+        end
+    end)
+    
+    playerButtons[plr.Name] = btn
+end
+
+local function removePlayerButton(plr)
+    local btn = P_Scroll:FindFirstChild("PlayerButton_"..plr.Name)
+    if btn then
+        btn:Destroy()
+        playerButtons[plr.Name] = nil
+        playerAutoKillToggles[plr.Name] = nil
+        playerAutoKillLoopRunning[plr.Name] = nil
+    end
+end
+
+for _, plr in ipairs(Players:GetPlayers()) do
+    addPlayerButton(plr)
+end
+Players.PlayerAdded:Connect(addPlayerButton)
+Players.PlayerRemoving:Connect(removePlayerButton)
+
+P_SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
+    local query = P_SearchBar.Text:lower()
+    for _, child in ipairs(P_Scroll:GetChildren()) do
+        if child:IsA("TextButton") then
+            local pName = child.Name:sub(14):lower()
+            child.Visible = (query == "" or pName:find(query))
+        end
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- 5) TELEPORTS SECTION
+--------------------------------------------------------------------------------
+local teleportsTitle = Instance.new("TextLabel")
+teleportsTitle.Size = UDim2.new(1, 0, 0, 30)
+teleportsTitle.Position = UDim2.new(0, 10, 0, 10)
+teleportsTitle.BackgroundTransparency = 1
+teleportsTitle.Text = "Teleports"
+teleportsTitle.TextColor3 = Color3.fromRGB(255,255,255)
+teleportsTitle.Font = Enum.Font.SourceSansBold
+teleportsTitle.TextSize = 20
+teleportsTitle.Parent = teleportsFrame
+
+local T_SearchBar = Instance.new("TextBox")
+T_SearchBar.Name = "T_SearchBar"
+T_SearchBar.Size = UDim2.new(0, 200, 0, 30)
+T_SearchBar.Position = UDim2.new(0, 10, 0, 50)
+T_SearchBar.PlaceholderText = "Search Teleports..."
+T_SearchBar.Text = ""
+T_SearchBar.Font = Enum.Font.SourceSans
+T_SearchBar.TextSize = 18
+T_SearchBar.TextColor3 = Color3.fromRGB(255,255,255)
+T_SearchBar.BackgroundColor3 = Color3.fromRGB(60,60,60)
+T_SearchBar.BorderSizePixel = 0
+T_SearchBar.Parent = teleportsFrame
+
+local T_Scroll = Instance.new("ScrollingFrame")
+T_Scroll.Name = "T_Scroll"
+T_Scroll.Size = UDim2.new(0, 220, 0, 250)
+T_Scroll.Position = UDim2.new(0, 10, 0, 90)
+T_Scroll.BackgroundTransparency = 1
+T_Scroll.ScrollBarThickness = 5
+T_Scroll.ScrollBarImageColor3 = Color3.fromRGB(255,100,0)
+T_Scroll.Parent = teleportsFrame
+T_Scroll.CanvasSize = UDim2.new(0,0,0,0)
+
+local T_ListLayout = Instance.new("UIListLayout")
+T_ListLayout.Padding = UDim.new(0,5)
+T_ListLayout.FillDirection = Enum.FillDirection.Vertical
+T_ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+T_ListLayout.Parent = T_Scroll
+T_ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    T_Scroll.CanvasSize = UDim2.new(0,0,0,T_ListLayout.AbsoluteContentSize.Y)
+end)
+
+local function teleportToTrainer(tName)
+    local trainersFolder2 = workspace.Game:FindFirstChild("Trainers")
+    if trainersFolder2 then
+        local trainer = trainersFolder2:FindFirstChild(tName)
+        if trainer and trainer:FindFirstChild("HumanoidRootPart") then
+            local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.CFrame = trainer.HumanoidRootPart.CFrame + Vector3.new(0,3,0)
             end
         end
     end
 end
 
-updatePlayerList()
-Players.PlayerAdded:Connect(updatePlayerList)
-Players.PlayerRemoving:Connect(updatePlayerList)
-
-P_SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
-    local query = P_SearchBar.Text:lower()
-    for _, button in ipairs(P_ScrollingFrame:GetChildren()) do
-        if button:IsA("TextButton") then
-            local pName = button.Name:sub(13):lower()  -- Remove "PlayerButton_"
-            button.Visible = (query == "" or pName:find(query))
-        end
-    end
-end)
-
------------------------------------------------
--- TAB 5: TELEPORTS SECTION CONTENT
------------------------------------------------
-local TeleportsContent = create("Frame", {
-    Name = "TeleportsContent",
-    Size = UDim2.new(1,0,1,0),
-    BackgroundTransparency = 1,
-    Visible = false,
-}, ContentArea)
-
-local NPC_SearchBar = create("TextBox", {
-    Name = "NPC_SearchBar",
-    Size = UDim2.new(1, -40, 0, 30),
-    Position = UDim2.new(0, 20, 0, 10),
-    PlaceholderText = "Search NPCs...",
-    Text = "",
-    Font = Enum.Font.SourceSans,
-    TextSize = 18,
-    TextColor3 = Color3.fromRGB(255,255,255),
-    BackgroundColor3 = Color3.fromRGB(35,35,35),
-    BorderSizePixel = 0,
-}, TeleportsContent)
-create("UICorner", {CornerRadius = UDim.new(0,5)}, NPC_SearchBar)
-
-local NPC_ScrollingFrame = create("ScrollingFrame", {
-    Name = "NPC_ScrollingFrame",
-    Size = UDim2.new(1, 0, 1, -50),
-    Position = UDim2.new(0, 0, 0, 50),
-    BackgroundTransparency = 1,
-    ScrollBarThickness = 5,
-    ScrollBarImageColor3 = Color3.fromRGB(255,50,50),
-}, TeleportsContent)
-NPC_ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-local NPC_UIList = create("UIListLayout", {
-    Padding = UDim.new(0,5),
-    FillDirection = Enum.FillDirection.Vertical,
-    SortOrder = Enum.SortOrder.LayoutOrder,
-}, NPC_ScrollingFrame)
-NPC_UIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    NPC_ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, NPC_UIList.AbsoluteContentSize.Y)
-end)
-
--- Use the same folder as Trainers for Teleports.
-local NPCsFolder = workspace.Game and workspace.Game:FindFirstChild("Trainers")
-if NPCsFolder then
-    for _, npc in ipairs(NPCsFolder:GetChildren()) do
-        if npc:IsA("Model") or npc:IsA("Folder") then
-            local npcName = npc.Name
-            local npcButton = create("TextButton", {
-                Name = "NPCButton_" .. npcName,
-                Text = npcName,
-                Font = Enum.Font.SourceSans,
-                TextSize = 20,
-                TextColor3 = Color3.fromRGB(255,255,255),
-                BackgroundColor3 = Color3.fromRGB(255,50,50),
-                Size = UDim2.new(1, -20, 0, 40),
-                LayoutOrder = 1,
-            }, NPC_ScrollingFrame)
-            create("UICorner", {CornerRadius = UDim.new(0,5)}, npcButton)
-            npcButton.MouseButton1Click:Connect(function()
-                local character = player.Character
-                if character and character:FindFirstChild("HumanoidRootPart") and npc:FindFirstChild("HumanoidRootPart") then
-                    character.HumanoidRootPart.CFrame = npc.HumanoidRootPart.CFrame + Vector3.new(0,3,0)
-                end
+-- Enumerate the same trainers from workspace.Game.Trainers, but for teleports
+local trainersFolder2 = workspace.Game:FindFirstChild("Trainers")
+if trainersFolder2 then
+    for _, trainer in ipairs(trainersFolder2:GetChildren()) do
+        if trainer:IsA("Model") or trainer:IsA("Folder") then
+            local tName = trainer.Name
+            local tBtn = Instance.new("TextButton")
+            tBtn.Name = "TeleportTrainer_"..tName
+            tBtn.Text = tName
+            tBtn.Font = Enum.Font.SourceSans
+            tBtn.TextSize = 18
+            tBtn.TextColor3 = Color3.fromRGB(255,255,255)
+            tBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+            tBtn.Size = UDim2.new(1, -10, 0, 30)
+            tBtn.BorderSizePixel = 0
+            tBtn.Parent = T_Scroll
+            
+            tBtn.MouseButton1Click:Connect(function()
+                teleportToTrainer(tName)
             end)
         end
     end
 end
 
-NPC_SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
-    local query = NPC_SearchBar.Text:lower()
-    for _, button in ipairs(NPC_ScrollingFrame:GetChildren()) do
-        if button:IsA("TextButton") then
-            local npcName = button.Name:sub(10):lower()  -- Remove "NPCButton_"
-            button.Visible = (query == "" or npcName:find(query))
+T_SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
+    local query = T_SearchBar.Text:lower()
+    for _, child in ipairs(T_Scroll:GetChildren()) do
+        if child:IsA("TextButton") then
+            local name = child.Name:sub(16):lower()
+            child.Visible = (query == "" or name:find(query))
         end
     end
 end)
 
------------------------------------------------
--- TAB BUTTON EVENT CONNECTIONS (SWITCHING TABS)
------------------------------------------------
-AutoKillTabButton.MouseButton1Click:Connect(function()
-    setTabSelected(AutoKillTabButton)
-    switchTab(AutoKillContent)
-end)
-StylesTabButton.MouseButton1Click:Connect(function()
-    setTabSelected(StylesTabButton)
-    switchTab(StylesContent)
-end)
-RelicsTabButton.MouseButton1Click:Connect(function()
-    setTabSelected(RelicsTabButton)
-    switchTab(RelicsContent)
-end)
-PlayersTabButton.MouseButton1Click:Connect(function()
-    setTabSelected(PlayersTabButton)
-    updatePlayerList()  -- Update list when Players tab is selected.
-    switchTab(PlayersContent)
-end)
-TeleportsTabButton.MouseButton1Click:Connect(function()
-    setTabSelected(TeleportsTabButton)
-    switchTab(TeleportsContent)
-end)
-
------------------------------------------------
--- ANIMATED TOGGLE VIA RIGHTALT (OPEN/CLOSE)
------------------------------------------------
-local originalSize = UDim2.new(0,600,0,400)
-ContextActionService:BindAction("ToggleExploitGUI", function(actionName, inputState, inputObject)
-    if inputState == Enum.UserInputState.Begin then
-        if MainWindow.Visible then
-            local tweenClose = TweenService:Create(MainWindow, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0,0,0,0)})
-            tweenClose:Play()
-            tweenClose.Completed:Connect(function()
-                MainWindow.Visible = false
-                MainWindow.Size = originalSize
-            end)
-        else
-            MainWindow.Visible = true
-            MainWindow.Size = UDim2.new(0,0,0,0)
-            local tweenOpen = TweenService:Create(MainWindow, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = originalSize})
-            tweenOpen:Play()
-        end
+--------------------------------------------------------------------------------
+-- Tab Button Connections
+--------------------------------------------------------------------------------
+local function showTab(tabBtn, frame)
+    highlightTab(tabBtn)
+    for _, f in ipairs(allSectionFrames) do
+        f.Visible = (f == frame)
     end
-    return Enum.ContextActionResult.Pass
-end, false, Enum.KeyCode.RightAlt)
+end
 
------------------------------------------------
--- INITIAL ANIMATION ON EXECUTION
------------------------------------------------
-MainWindow.Size = UDim2.new(0,0,0,0)
-task.delay(0.1, function()
-    local tweenInitialOpen = TweenService:Create(MainWindow, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = originalSize})
-    tweenInitialOpen:Play()
+autoKillTabButton.MouseButton1Click:Connect(function()
+    showTab(autoKillTabButton, autoKillFrame)
 end)
+stylesTabButton.MouseButton1Click:Connect(function()
+    showTab(stylesTabButton, stylesFrame)
+end)
+relicsTabButton.MouseButton1Click:Connect(function()
+    showTab(relicsTabButton, relicsFrame)
+end)
+playersTabButton.MouseButton1Click:Connect(function()
+    showTab(playersTabButton, playersFrame)
+end)
+teleportsTabButton.MouseButton1Click:Connect(function()
+    showTab(teleportsTabButton, teleportsFrame)
+end)
+
+--------------------------------------------------------------------------------
+-- Stop All Loops on GUI Close
+--------------------------------------------------------------------------------
+local function stopAllLogic()
+    -- 1) Auto Kill
+    for boss,_ in pairs(autoBossToggles) do
+        autoBossToggles[boss] = false
+    end
+    allBossesOn = false
+    
+    -- 2) Relics
+    relicTeleportEnabled = false
+    
+    -- 3) Players
+    for plrName,_ in pairs(playerAutoKillToggles) do
+        playerAutoKillToggles[plrName] = false
+    end
+end
+
+CloseButton.MouseButton1Click:Connect(function()
+    -- Turn off all toggles so loops break
+    stopAllLogic()
+    -- Destroy the GUI
+    ScreenGui:Destroy()
+end)
+
+--------------------------------------------------------------------------------
+-- Default Tab
+--------------------------------------------------------------------------------
+showTab(autoKillTabButton, autoKillFrame)
