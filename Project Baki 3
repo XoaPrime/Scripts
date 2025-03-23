@@ -1,31 +1,35 @@
---------------------------------------------------------------------------------
--- Xoa Hub --
-
--- Sections:
---   1. Auto Kill
---   2. Styles
---   3. Relics
---   4. Players
---   5. Teleports
-
---------------------------------------------------------------------------------
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
---------------------------------------------------------------------------------
--- Create the main ScreenGui
---------------------------------------------------------------------------------
+local function tweenProperty(object, propertyTable, time, easingStyle, easingDirection)
+    local tweenInfo = TweenInfo.new(time, easingStyle or Enum.EasingStyle.Quad, easingDirection or Enum.EasingDirection.Out)
+    local tween = TweenService:Create(object, tweenInfo, propertyTable)
+    tween:Play()
+    return tween
+end
+
+local function addCorner(instance, cornerRadius)
+    local uiCorner = Instance.new("UICorner")
+    uiCorner.CornerRadius = UDim.new(0, cornerRadius or 8)
+    uiCorner.Parent = instance
+end
+
+local function addStroke(instance, color, thickness)
+    local uiStroke = Instance.new("UIStroke")
+    uiStroke.Color = color or Color3.new(0,0,0)
+    uiStroke.Thickness = thickness or 2
+    uiStroke.Parent = instance
+end
+
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "XoaHubGUI"
-ScreenGui.ResetOnSpawn = false  -- persist on reset
+ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = playerGui
+ScreenGui.Enabled = false
 
---------------------------------------------------------------------------------
--- Main Window
---------------------------------------------------------------------------------
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -36,16 +40,16 @@ MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 MainFrame.Active = true
 MainFrame.Draggable = true
+addCorner(MainFrame, 10)
+addStroke(MainFrame, Color3.fromRGB(20,20,20), 3)
 
---------------------------------------------------------------------------------
--- Top Bar
---------------------------------------------------------------------------------
 local TopBar = Instance.new("Frame")
 TopBar.Name = "TopBar"
 TopBar.Size = UDim2.new(1, 0, 0, 40)
 TopBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 TopBar.BorderSizePixel = 0
 TopBar.Parent = MainFrame
+addCorner(TopBar, 10)
 
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
@@ -70,10 +74,15 @@ CloseButton.TextSize = 24
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseButton.BorderSizePixel = 0
 CloseButton.Parent = TopBar
+addCorner(CloseButton, 8)
 
---------------------------------------------------------------------------------
--- Left Sidebar
---------------------------------------------------------------------------------
+CloseButton.MouseEnter:Connect(function()
+    tweenProperty(CloseButton, {BackgroundColor3 = Color3.fromRGB(200, 50, 50)}, 0.2)
+end)
+CloseButton.MouseLeave:Connect(function()
+    tweenProperty(CloseButton, {BackgroundColor3 = Color3.fromRGB(128, 128, 128)}, 0.2)
+end)
+
 local Sidebar = Instance.new("Frame")
 Sidebar.Name = "Sidebar"
 Sidebar.Size = UDim2.new(0, 150, 1, -40)
@@ -81,6 +90,7 @@ Sidebar.Position = UDim2.new(0, 0, 0, 40)
 Sidebar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Sidebar.BorderSizePixel = 0
 Sidebar.Parent = MainFrame
+addCorner(Sidebar, 10)
 
 local SidebarLayout = Instance.new("UIListLayout")
 SidebarLayout.Padding = UDim.new(0, 5)
@@ -88,9 +98,6 @@ SidebarLayout.FillDirection = Enum.FillDirection.Vertical
 SidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder
 SidebarLayout.Parent = Sidebar
 
---------------------------------------------------------------------------------
--- Content Area (right side)
---------------------------------------------------------------------------------
 local ContentArea = Instance.new("Frame")
 ContentArea.Name = "ContentArea"
 ContentArea.Size = UDim2.new(1, -150, 1, -40)
@@ -98,10 +105,8 @@ ContentArea.Position = UDim2.new(0, 150, 0, 40)
 ContentArea.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 ContentArea.BorderSizePixel = 0
 ContentArea.Parent = MainFrame
+addCorner(ContentArea, 10)
 
---------------------------------------------------------------------------------
--- Create Tab Button Utility
---------------------------------------------------------------------------------
 local function createTabButton(tabName)
     local btn = Instance.new("TextButton")
     btn.Name = tabName.."Tab"
@@ -113,10 +118,18 @@ local function createTabButton(tabName)
     btn.Text = tabName
     btn.BorderSizePixel = 0
     btn.Parent = Sidebar
+    addCorner(btn, 8)
+    
+    btn.MouseEnter:Connect(function()
+        tweenProperty(btn, {BackgroundColor3 = Color3.fromRGB(70, 70, 70)}, 0.15)
+    end)
+    btn.MouseLeave:Connect(function()
+        tweenProperty(btn, {BackgroundColor3 = Color3.fromRGB(55, 55, 55)}, 0.15)
+    end)
+    
     return btn
 end
 
--- Five tab buttons
 local autoKillTabButton  = createTabButton("Auto Kill")
 local stylesTabButton    = createTabButton("Styles")
 local relicsTabButton    = createTabButton("Relics")
@@ -134,16 +147,13 @@ local allTabButtons = {
 local function highlightTab(selected)
     for _, btn in ipairs(allTabButtons) do
         if btn == selected then
-            btn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+            tweenProperty(btn, {BackgroundColor3 = Color3.fromRGB(80, 80, 80)}, 0.15)
         else
-            btn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+            tweenProperty(btn, {BackgroundColor3 = Color3.fromRGB(55, 55, 55)}, 0.15)
         end
     end
 end
 
---------------------------------------------------------------------------------
--- Section Frames
---------------------------------------------------------------------------------
 local function createSectionFrame(sectionName)
     local frame = Instance.new("Frame")
     frame.Name = sectionName.."Frame"
@@ -171,13 +181,16 @@ local allSectionFrames = {
 
 local function showSectionFrame(selectedFrame)
     for _, frame in ipairs(allSectionFrames) do
-        frame.Visible = (frame == selectedFrame)
+        if frame == selectedFrame then
+            frame.Visible = true
+            frame.BackgroundTransparency = 1
+            tweenProperty(frame, {BackgroundTransparency = 0}, 0.25)
+        else
+            frame.Visible = false
+        end
     end
 end
 
---------------------------------------------------------------------------------
--- 1) AUTO KILL SECTION
---------------------------------------------------------------------------------
 local autoBossNames = {
     "Kiyosumi Kato", "Retsu", "Dorian", "Sikorsky", "Spec", "Doyle",
     "Yanagi", "Yasha Ape Jr.", "Raian", "KiryuKazuma", "Pickle",
@@ -219,6 +232,7 @@ AK_SearchBar.TextColor3 = Color3.fromRGB(255,255,255)
 AK_SearchBar.BackgroundColor3 = Color3.fromRGB(60,60,60)
 AK_SearchBar.BorderSizePixel = 0
 AK_SearchBar.Parent = autoKillFrame
+addCorner(AK_SearchBar, 5)
 
 local EveryBossButton = Instance.new("TextButton")
 EveryBossButton.Name = "EveryBossButton"
@@ -231,6 +245,7 @@ EveryBossButton.Size = UDim2.new(0, 200, 0, 30)
 EveryBossButton.Position = UDim2.new(0, 10, 0, 90)
 EveryBossButton.BorderSizePixel = 0
 EveryBossButton.Parent = autoKillFrame
+addCorner(EveryBossButton, 5)
 
 local BossScroll = Instance.new("ScrollingFrame")
 BossScroll.Name = "BossScroll"
@@ -262,12 +277,13 @@ local function createBossButton(boss)
     btn.Text = boss.." : OFF"
     btn.BorderSizePixel = 0
     btn.Parent = BossScroll
+    addCorner(btn, 5)
     
     btn.MouseButton1Click:Connect(function()
         autoBossToggles[boss] = not autoBossToggles[boss]
         if autoBossToggles[boss] then
             btn.Text = boss.." : ON"
-            btn.BackgroundColor3 = Color3.fromRGB(255,100,0)
+            tweenProperty(btn, {BackgroundColor3 = Color3.fromRGB(255,100,0)}, 0.15)
             if not autoBossLoopRunning[boss] then
                 autoBossLoopRunning[boss] = true
                 task.spawn(function()
@@ -284,7 +300,7 @@ local function createBossButton(boss)
             end
         else
             btn.Text = boss.." : OFF"
-            btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+            tweenProperty(btn, {BackgroundColor3 = Color3.fromRGB(80,80,80)}, 0.15)
         end
     end)
     autoBossButtons[boss] = btn
@@ -297,7 +313,7 @@ end
 EveryBossButton.MouseButton1Click:Connect(function()
     allBossesOn = not allBossesOn
     EveryBossButton.Text = allBossesOn and "Every Boss: ON" or "Every Boss: OFF"
-    EveryBossButton.BackgroundColor3 = allBossesOn and Color3.fromRGB(255,100,0) or Color3.fromRGB(80,80,80)
+    tweenProperty(EveryBossButton, {BackgroundColor3 = allBossesOn and Color3.fromRGB(255,100,0) or Color3.fromRGB(80,80,80)}, 0.15)
     
     for _, boss in ipairs(autoBossNames) do
         autoBossToggles[boss] = allBossesOn
@@ -305,7 +321,7 @@ EveryBossButton.MouseButton1Click:Connect(function()
         if btn then
             if allBossesOn then
                 btn.Text = boss.." : ON"
-                btn.BackgroundColor3 = Color3.fromRGB(255,100,0)
+                tweenProperty(btn, {BackgroundColor3 = Color3.fromRGB(255,100,0)}, 0.15)
                 if not autoBossLoopRunning[boss] then
                     autoBossLoopRunning[boss] = true
                     task.spawn(function()
@@ -322,7 +338,7 @@ EveryBossButton.MouseButton1Click:Connect(function()
                 end
             else
                 btn.Text = boss.." : OFF"
-                btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+                tweenProperty(btn, {BackgroundColor3 = Color3.fromRGB(80,80,80)}, 0.15)
             end
         end
     end
@@ -338,9 +354,6 @@ AK_SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
     end
 end)
 
---------------------------------------------------------------------------------
--- 2) STYLES SECTION
---------------------------------------------------------------------------------
 local stylesTitle = Instance.new("TextLabel")
 stylesTitle.Size = UDim2.new(1, 0, 0, 30)
 stylesTitle.Position = UDim2.new(0, 10, 0, 10)
@@ -363,6 +376,7 @@ StyleSearchBar.TextColor3 = Color3.fromRGB(255,255,255)
 StyleSearchBar.BackgroundColor3 = Color3.fromRGB(60,60,60)
 StyleSearchBar.BorderSizePixel = 0
 StyleSearchBar.Parent = stylesFrame
+addCorner(StyleSearchBar, 5)
 
 local TrainerScroll = Instance.new("ScrollingFrame")
 TrainerScroll.Name = "TrainerScroll"
@@ -403,9 +417,13 @@ if trainersFolder then
             tBtn.Size = UDim2.new(1, -10, 0, 30)
             tBtn.BorderSizePixel = 0
             tBtn.Parent = TrainerScroll
+            addCorner(tBtn, 5)
             
             tBtn.MouseButton1Click:Connect(function()
                 equipStyle(tName)
+                tweenProperty(tBtn, {BackgroundColor3 = Color3.fromRGB(200,50,50)}, 0.15)
+                task.wait(0.2)
+                tweenProperty(tBtn, {BackgroundColor3 = Color3.fromRGB(255,100,100)}, 0.15)
             end)
         end
     end
@@ -421,9 +439,6 @@ StyleSearchBar:GetPropertyChangedSignal("Text"):Connect(function()
     end
 end)
 
---------------------------------------------------------------------------------
--- 3) RELICS SECTION
---------------------------------------------------------------------------------
 local relicsTitle = Instance.new("TextLabel")
 relicsTitle.Size = UDim2.new(1, 0, 0, 30)
 relicsTitle.Position = UDim2.new(0, 10, 0, 10)
@@ -445,6 +460,7 @@ relicToggle.TextSize = 18
 relicToggle.Text = "Enable Relics Teleport: OFF"
 relicToggle.BorderSizePixel = 0
 relicToggle.Parent = relicsFrame
+addCorner(relicToggle, 5)
 
 local relicTeleportEnabled = false
 local relicLoopRunning = false
@@ -452,7 +468,7 @@ local relicLoopRunning = false
 relicToggle.MouseButton1Click:Connect(function()
     relicTeleportEnabled = not relicTeleportEnabled
     relicToggle.Text = relicTeleportEnabled and "Enable Relics Teleport: ON" or "Enable Relics Teleport: OFF"
-    relicToggle.BackgroundColor3 = relicTeleportEnabled and Color3.fromRGB(255,100,0) or Color3.fromRGB(80,80,80)
+    tweenProperty(relicToggle, {BackgroundColor3 = relicTeleportEnabled and Color3.fromRGB(255,100,0) or Color3.fromRGB(80,80,80)}, 0.15)
     
     if relicTeleportEnabled and not relicLoopRunning then
         relicLoopRunning = true
@@ -469,7 +485,7 @@ relicToggle.MouseButton1Click:Connect(function()
                                     local originalCFrame = hrp.CFrame
                                     hrp.CFrame = relic.CFrame + Vector3.new(0,3,0)
                                     local startTime = tick()
-                                    while relic and relic.Parent and (tick()-startTime<10) and relicTeleportEnabled do
+                                    while relic and relic.Parent and (tick()-startTime < 10) and relicTeleportEnabled do
                                         task.wait(0.1)
                                     end
                                     hrp.CFrame = originalCFrame
@@ -486,9 +502,6 @@ relicToggle.MouseButton1Click:Connect(function()
     end
 end)
 
---------------------------------------------------------------------------------
--- 4) PLAYERS SECTION
---------------------------------------------------------------------------------
 local playerAutoKillToggles = {}
 local playerAutoKillLoopRunning = {}
 local playerButtons = {}
@@ -515,6 +528,7 @@ P_SearchBar.TextColor3 = Color3.fromRGB(255,255,255)
 P_SearchBar.BackgroundColor3 = Color3.fromRGB(60,60,60)
 P_SearchBar.BorderSizePixel = 0
 P_SearchBar.Parent = playersFrame
+addCorner(P_SearchBar, 5)
 
 local P_Scroll = Instance.new("ScrollingFrame")
 P_Scroll.Name = "P_Scroll"
@@ -549,6 +563,7 @@ local function addPlayerButton(plr)
     btn.Size = UDim2.new(1, -10, 0, 30)
     btn.BorderSizePixel = 0
     btn.Parent = P_Scroll
+    addCorner(btn, 5)
     
     playerAutoKillToggles[plr.Name] = false
     playerAutoKillLoopRunning[plr.Name] = false
@@ -558,7 +573,7 @@ local function addPlayerButton(plr)
         playerAutoKillToggles[plr.Name] = toggled
         if toggled then
             btn.Text = plr.Name.." : ON"
-            btn.BackgroundColor3 = Color3.fromRGB(255,100,0)
+            tweenProperty(btn, {BackgroundColor3 = Color3.fromRGB(255,100,0)}, 0.15)
             if not playerAutoKillLoopRunning[plr.Name] then
                 playerAutoKillLoopRunning[plr.Name] = true
                 task.spawn(function()
@@ -575,7 +590,7 @@ local function addPlayerButton(plr)
             end
         else
             btn.Text = plr.Name.." : OFF"
-            btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+            tweenProperty(btn, {BackgroundColor3 = Color3.fromRGB(80,80,80)}, 0.15)
         end
     end)
     
@@ -608,9 +623,6 @@ P_SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
     end
 end)
 
---------------------------------------------------------------------------------
--- 5) TELEPORTS SECTION
---------------------------------------------------------------------------------
 local teleportsTitle = Instance.new("TextLabel")
 teleportsTitle.Size = UDim2.new(1, 0, 0, 30)
 teleportsTitle.Position = UDim2.new(0, 10, 0, 10)
@@ -633,6 +645,7 @@ T_SearchBar.TextColor3 = Color3.fromRGB(255,255,255)
 T_SearchBar.BackgroundColor3 = Color3.fromRGB(60,60,60)
 T_SearchBar.BorderSizePixel = 0
 T_SearchBar.Parent = teleportsFrame
+addCorner(T_SearchBar, 5)
 
 local T_Scroll = Instance.new("ScrollingFrame")
 T_Scroll.Name = "T_Scroll"
@@ -661,12 +674,12 @@ local function teleportToTrainer(tName)
             local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
             if hrp then
                 hrp.CFrame = trainer.HumanoidRootPart.CFrame + Vector3.new(0,3,0)
+                tweenProperty(hrp, {CFrame = trainer.HumanoidRootPart.CFrame + Vector3.new(0,3,0)}, 0.2)
             end
         end
     end
 end
 
--- Enumerate the same trainers from workspace.Game.Trainers, but for teleports
 local trainersFolder2 = workspace.Game:FindFirstChild("Trainers")
 if trainersFolder2 then
     for _, trainer in ipairs(trainersFolder2:GetChildren()) do
@@ -682,6 +695,7 @@ if trainersFolder2 then
             tBtn.Size = UDim2.new(1, -10, 0, 30)
             tBtn.BorderSizePixel = 0
             tBtn.Parent = T_Scroll
+            addCorner(tBtn, 5)
             
             tBtn.MouseButton1Click:Connect(function()
                 teleportToTrainer(tName)
@@ -700,13 +714,16 @@ T_SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
     end
 end)
 
---------------------------------------------------------------------------------
--- Tab Button Connections
---------------------------------------------------------------------------------
 local function showTab(tabBtn, frame)
     highlightTab(tabBtn)
     for _, f in ipairs(allSectionFrames) do
-        f.Visible = (f == frame)
+        if f == frame then
+            f.Visible = true
+            f.BackgroundTransparency = 1
+            tweenProperty(f, {BackgroundTransparency = 0}, 0.25)
+        else
+            f.Visible = false
+        end
     end
 end
 
@@ -726,33 +743,25 @@ teleportsTabButton.MouseButton1Click:Connect(function()
     showTab(teleportsTabButton, teleportsFrame)
 end)
 
---------------------------------------------------------------------------------
--- Stop All Loops on GUI Close
---------------------------------------------------------------------------------
 local function stopAllLogic()
-    -- 1) Auto Kill
     for boss,_ in pairs(autoBossToggles) do
         autoBossToggles[boss] = false
     end
     allBossesOn = false
-    
-    -- 2) Relics
     relicTeleportEnabled = false
-    
-    -- 3) Players
     for plrName,_ in pairs(playerAutoKillToggles) do
         playerAutoKillToggles[plrName] = false
     end
 end
 
 CloseButton.MouseButton1Click:Connect(function()
-    -- Turn off all toggles so loops break
     stopAllLogic()
-    -- Destroy the GUI
+    tweenProperty(MainFrame, {BackgroundTransparency = 1}, 0.25)
+    task.wait(0.3)
     ScreenGui:Destroy()
 end)
 
---------------------------------------------------------------------------------
--- Default Tab
---------------------------------------------------------------------------------
 showTab(autoKillTabButton, autoKillFrame)
+ScreenGui.Enabled = true
+MainFrame.BackgroundTransparency = 1
+tweenProperty(MainFrame, {BackgroundTransparency = 0}, 0.5)
