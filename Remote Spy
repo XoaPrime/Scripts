@@ -1,0 +1,433 @@
+local isLogging = true
+local excludedRemotes = {}
+
+local function connectRemote(remoteObject)
+    if remoteObject:IsA("RemoteEvent") then
+        remoteObject.OnClientEvent:Connect(function(...)
+            if not isLogging then return end
+            if excludedRemotes[remoteObject.Name] then return end
+            addRemoteToGUI(remoteObject, "RemoteEvent", {...})
+        end)
+    elseif remoteObject:IsA("RemoteFunction") then
+        remoteObject.OnClientInvoke = function(...)
+            if not isLogging then return nil end
+            if excludedRemotes[remoteObject.Name] then return nil end
+            addRemoteToGUI(remoteObject, "RemoteFunction", {...})
+            return nil
+        end
+    end
+end
+
+for _, descendant in ipairs(game:GetDescendants()) do
+    if descendant:IsA("RemoteEvent") or descendant:IsA("RemoteFunction") then
+        connectRemote(descendant)
+    end
+end
+
+game.DescendantAdded:Connect(function(descendant)
+    if descendant:IsA("RemoteEvent") or descendant:IsA("RemoteFunction") then
+        connectRemote(descendant)
+    end
+end)
+
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+local playerGui = localPlayer:WaitForChild("PlayerGui")
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SimpleSpyEnhanced"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 600, 0, 400)
+mainFrame.Position = UDim2.new(0.5, -300, 0.5, -200)
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 30)
+titleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "TitleLabel"
+titleLabel.Size = UDim2.new(1, -10, 1, 0)
+titleLabel.Position = UDim2.new(0, 5, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "SimpleSpy Enhanced - (Server -> Client)"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 16
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = titleBar
+
+local titleToggleButton = Instance.new("TextButton")
+titleToggleButton.Name = "TitleToggleButton"
+titleToggleButton.Size = UDim2.new(1, -30, 1, 0)
+titleToggleButton.Position = UDim2.new(0, 0, 0, 0)
+titleToggleButton.BackgroundTransparency = 1
+titleToggleButton.Text = ""
+titleToggleButton.Parent = titleBar
+
+local closeButton = Instance.new("TextButton")
+closeButton.Name = "CloseButton"
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -30, 0, 0)
+closeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+closeButton.BorderSizePixel = 0
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.Font = Enum.Font.GothamBold
+closeButton.TextSize = 16
+closeButton.Parent = titleBar
+
+closeButton.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+end)
+
+local contentFrame = Instance.new("Frame")
+contentFrame.Name = "ContentFrame"
+contentFrame.Size = UDim2.new(1, 0, 1, -30)
+contentFrame.Position = UDim2.new(0, 0, 0, 30)
+contentFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+contentFrame.BorderSizePixel = 0
+contentFrame.Parent = mainFrame
+
+local leftFrame = Instance.new("Frame")
+leftFrame.Name = "LeftFrame"
+leftFrame.Size = UDim2.new(0.3, 0, 1, 0)
+leftFrame.Position = UDim2.new(0, 0, 0, 0)
+leftFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+leftFrame.BorderSizePixel = 0
+leftFrame.Parent = contentFrame
+
+local remoteList = Instance.new("ScrollingFrame")
+remoteList.Name = "RemoteList"
+remoteList.Size = UDim2.new(1, 0, 1, 0)
+remoteList.Position = UDim2.new(0, 0, 0, 0)
+remoteList.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+remoteList.BorderSizePixel = 0
+remoteList.ScrollBarThickness = 6
+remoteList.CanvasSize = UDim2.new(0, 0, 0, 0)
+remoteList.Parent = leftFrame
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0, 5)
+listLayout.Parent = remoteList
+
+listLayout.Changed:Connect(function(prop)
+    if prop == "AbsoluteContentSize" then
+        remoteList.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 10)
+    end
+end)
+
+local rightFrame = Instance.new("Frame")
+rightFrame.Name = "RightFrame"
+rightFrame.Size = UDim2.new(0.7, -10, 1, 0)
+rightFrame.Position = UDim2.new(0.3, 10, 0, 0)
+rightFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+rightFrame.BorderSizePixel = 0
+rightFrame.Parent = contentFrame
+
+local codeScrollFrame = Instance.new("ScrollingFrame")
+codeScrollFrame.Name = "CodeScrollFrame"
+codeScrollFrame.Size = UDim2.new(1, -10, 1, -50)
+codeScrollFrame.Position = UDim2.new(0, 5, 0, 5)
+codeScrollFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+codeScrollFrame.BorderSizePixel = 0
+codeScrollFrame.ScrollBarThickness = 8
+codeScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+codeScrollFrame.Parent = rightFrame
+
+local codeBox = Instance.new("TextBox")
+codeBox.Name = "CodeBox"
+codeBox.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+codeBox.BorderSizePixel = 0
+codeBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+codeBox.Font = Enum.Font.SourceSans
+codeBox.TextSize = 16
+codeBox.TextXAlignment = Enum.TextXAlignment.Left
+codeBox.TextYAlignment = Enum.TextYAlignment.Top
+codeBox.ClearTextOnFocus = false
+codeBox.MultiLine = true
+codeBox.TextWrapped = false
+codeBox.Text = "-- Remote Call Details\n-- Select a remote from the left list."
+codeBox.Parent = codeScrollFrame
+
+codeBox.Changed:Connect(function(prop)
+    if prop == "TextBounds" then
+        local tb = codeBox.TextBounds
+        codeBox.Size = UDim2.new(0, math.max(tb.X, codeScrollFrame.AbsoluteWindowSize.X),
+                                 0, math.max(tb.Y, codeScrollFrame.AbsoluteWindowSize.Y))
+        codeScrollFrame.CanvasSize = UDim2.new(0, codeBox.AbsoluteSize.X, 0, codeBox.AbsoluteSize.Y)
+    end
+end)
+
+local buttonHolder = Instance.new("Frame")
+buttonHolder.Name = "ButtonHolder"
+buttonHolder.Size = UDim2.new(1, -10, 0, 35)
+buttonHolder.Position = UDim2.new(0, 5, 1, -40)
+buttonHolder.BackgroundTransparency = 1
+buttonHolder.Parent = rightFrame
+
+local uiListLayout = Instance.new("UIListLayout")
+uiListLayout.FillDirection = Enum.FillDirection.Horizontal
+uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+uiListLayout.Padding = UDim.new(0, 5)
+uiListLayout.Parent = buttonHolder
+
+local excludeButton = Instance.new("TextButton")
+excludeButton.Name = "ExcludeButton"
+excludeButton.Size = UDim2.new(0, 70, 1, 0)
+excludeButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+excludeButton.BorderSizePixel = 0
+excludeButton.Text = "Exclude"
+excludeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+excludeButton.Font = Enum.Font.GothamBold
+excludeButton.TextSize = 14
+excludeButton.Parent = buttonHolder
+
+local clearButton = Instance.new("TextButton")
+clearButton.Name = "ClearButton"
+clearButton.Size = UDim2.new(0, 70, 1, 0)
+clearButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+clearButton.BorderSizePixel = 0
+clearButton.Text = "Clear Logs"
+clearButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+clearButton.Font = Enum.Font.GothamBold
+clearButton.TextSize = 14
+clearButton.Parent = buttonHolder
+
+local fireButton = Instance.new("TextButton")
+fireButton.Name = "FireButton"
+fireButton.Size = UDim2.new(0, 70, 1, 0)
+fireButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+fireButton.BorderSizePixel = 0
+fireButton.Text = "Fire"
+fireButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+fireButton.Font = Enum.Font.GothamBold
+fireButton.TextSize = 14
+fireButton.Parent = buttonHolder
+
+local copyButton = Instance.new("TextButton")
+copyButton.Name = "CopyButton"
+copyButton.Size = UDim2.new(0, 70, 1, 0)
+copyButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+copyButton.BorderSizePixel = 0
+copyButton.Text = "Copy"
+copyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+copyButton.Font = Enum.Font.GothamBold
+copyButton.TextSize = 14
+copyButton.Parent = buttonHolder
+
+local calls = {}
+local lastCallInfo = nil
+
+function addRemoteToGUI(remote, remoteType, args)
+    local callInfo = {
+        Remote = remote,
+        RemoteType = remoteType,
+        Arguments = args
+    }
+    table.insert(calls, callInfo)
+
+    local callButton = Instance.new("TextButton")
+    callButton.Size = UDim2.new(1, -4, 0, 30)
+    callButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    callButton.BorderSizePixel = 0
+    callButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    callButton.Font = Enum.Font.Gotham
+    callButton.TextSize = 14
+    callButton.TextXAlignment = Enum.TextXAlignment.Left
+    callButton.Text = remote.Name
+    callButton.Parent = remoteList
+
+    callInfo.Button = callButton
+    callButton.MouseButton1Click:Connect(function()
+        showCallDetails(callInfo)
+    end)
+end
+
+function showCallDetails(callInfo)
+    lastCallInfo = callInfo
+    local r = callInfo.Remote
+    local t = callInfo.RemoteType
+    local a = callInfo.Arguments
+
+    local snippet = ("-- %s: %s\n"):format(t, getInstancePath(r))
+    snippet = snippet .. "local args = {\n"
+    for i, v in ipairs(a) do
+        snippet = snippet .. string.format("    [%d] = %s,\n", i, repr(v))
+    end
+    snippet = snippet .. "}\n\n"
+    if t == "RemoteEvent" then
+        snippet = snippet .. ("-- Example client->server call:\n%s:FireServer(unpack(args))\n"):format(getInstancePath(r))
+    elseif t == "RemoteFunction" then
+        snippet = snippet .. ("-- Example client->server call:\nlocal returnVal = %s:InvokeServer(unpack(args))\n"):format(getInstancePath(r))
+    else
+        snippet = snippet .. "-- Unknown remote type (??)\n"
+    end
+    codeBox.Text = snippet
+end
+
+function repr(value, visited)
+    visited = visited or {}
+    local tp = typeof(value)
+    if tp == "string" then
+        return string.format("%q", value)
+    elseif tp == "number" or tp == "boolean" then
+        return tostring(value)
+    elseif tp == "Instance" then
+        return string.format("%q", getInstancePath(value))
+    elseif tp == "Vector3" then
+        return ("Vector3.new(%.3f, %.3f, %.3f)"):format(value.X, value.Y, value.Z)
+    elseif tp == "Vector3int16" then
+        return ("Vector3int16.new(%d, %d, %d)"):format(value.X, value.Y, value.Z)
+    elseif tp == "Vector2" then
+        return ("Vector2.new(%.3f, %.3f)"):format(value.X, value.Y)
+    elseif tp == "UDim" then
+        return ("UDim.new(%.3f, %d)"):format(value.Scale, value.Offset)
+    elseif tp == "UDim2" then
+        return ("UDim2.new(%.3f, %d, %.3f, %d)"):format(value.X.Scale, value.X.Offset, value.Y.Scale, value.Y.Offset)
+    elseif tp == "Color3" then
+        return ("Color3.new(%.3f, %.3f, %.3f)"):format(value.R, value.G, value.B)
+    elseif tp == "BrickColor" then
+        return string.format("BrickColor.new(%q)", value.Name)
+    elseif tp == "EnumItem" then
+        return tostring(value)
+    elseif tp == "CFrame" then
+        local components = {value:GetComponents()}
+        return string.format(
+            "CFrame.new(%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f)",
+            unpack(components)
+        )
+    elseif tp == "Ray" then
+        return string.format("Ray.new(%s, %s)", repr(value.Origin, visited), repr(value.Direction, visited))
+    elseif tp == "Rect" then
+        return string.format("Rect.new(%s, %s)", repr(value.Min, visited), repr(value.Max, visited))
+    elseif tp == "table" then
+        if visited[value] then
+            return "\"[Cyclic Reference]\""
+        end
+        visited[value] = true
+        local parts = {}
+        table.insert(parts, "{")
+        for k, v in pairs(value) do
+            table.insert(parts, string.format("  [%s] = %s,", repr(k, visited), repr(v, visited)))
+        end
+        table.insert(parts, "}")
+        return table.concat(parts, "\n")
+    else
+        return "\"[Unsupported: " .. tp .. "]\""
+    end
+end
+
+function getInstancePath(obj)
+    if obj == game then
+        return "game"
+    end
+    local segmentsReversed = {}
+    local current = obj
+    while current and current ~= game do
+        table.insert(segmentsReversed, current.Name)
+        current = current.Parent
+    end
+    if current == game then
+        for i = 1, math.floor(#segmentsReversed / 2) do
+            local j = #segmentsReversed - i + 1
+            segmentsReversed[i], segmentsReversed[j] = segmentsReversed[j], segmentsReversed[i]
+        end
+        return "game." .. table.concat(segmentsReversed, ".")
+    else
+        return obj.Name
+    end
+end
+
+excludeButton.MouseButton1Click:Connect(function()
+    if not lastCallInfo then
+        codeBox.Text = "-- No remote selected to exclude.\n" .. codeBox.Text
+        return
+    end
+    local name = lastCallInfo.Remote.Name
+    excludedRemotes[name] = true
+    codeBox.Text = codeBox.Text .. ("\n-- Excluding future calls for remote name: %s"):format(name)
+end)
+
+clearButton.MouseButton1Click:Connect(function()
+    for _, c in ipairs(calls) do
+        if c.Button then
+            c.Button:Destroy()
+        end
+    end
+    table.clear(calls)
+    lastCallInfo = nil
+    codeBox.Text = "-- Logs cleared.\n"
+end)
+
+fireButton.MouseButton1Click:Connect(function()
+    if not lastCallInfo then
+        codeBox.Text = "-- No remote selected to fire.\n" .. codeBox.Text
+        return
+    end
+    local remote = lastCallInfo.Remote
+    local rType = lastCallInfo.RemoteType
+    local args = lastCallInfo.Arguments
+    if rType == "RemoteEvent" then
+        local success, err = pcall(function()
+            remote:FireServer(unpack(args))
+        end)
+        if success then
+            codeBox.Text = codeBox.Text .. "\n-- Fired RemoteEvent successfully!"
+        else
+            codeBox.Text = codeBox.Text .. "\n-- FireServer error: " .. tostring(err)
+        end
+    elseif rType == "RemoteFunction" then
+        local success, result = pcall(function()
+            return remote:InvokeServer(unpack(args))
+        end)
+        if success then
+            codeBox.Text = codeBox.Text .. ("\n-- InvokeServer success, returned: %s"):format(tostring(result))
+        else
+            codeBox.Text = codeBox.Text .. "\n-- InvokeServer error: " .. tostring(result)
+        end
+    else
+        codeBox.Text = codeBox.Text .. "\n-- Unknown remote type, can't fire."
+    end
+end)
+
+copyButton.MouseButton1Click:Connect(function()
+    if setclipboard then
+        setclipboard(codeBox.Text)
+        codeBox.Text = codeBox.Text .. "\n-- Code snippet copied to clipboard!"
+    else
+        codeBox:ReleaseFocus()
+        codeBox.CursorPosition = #codeBox.Text + 1
+        codeBox.SelectionStart = 1
+        codeBox.Text = codeBox.Text .. "\n-- Code snippet selected, press Ctrl+C to copy!"
+    end
+end)
+
+titleToggleButton.MouseButton1Click:Connect(function()
+    isLogging = not isLogging
+    local newColor = isLogging and Color3.fromRGB(25, 25, 25) or Color3.fromRGB(100, 30, 30)
+    local tweenInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    TweenService:Create(titleBar, tweenInfo, {BackgroundColor3 = newColor}):Play()
+    if isLogging then
+        titleLabel.Text = "SimpleSpy Enhanced - (Server -> Client)"
+    else
+        titleLabel.Text = "LOGGING PAUSED (Click to Resume)"
+    end
+end)
+
+local fadeInInfo = TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+TweenService:Create(mainFrame, fadeInInfo, {BackgroundTransparency = 0}):Play()
+TweenService:Create(contentFrame, fadeInInfo, {BackgroundTransparency = 0}):Play()
