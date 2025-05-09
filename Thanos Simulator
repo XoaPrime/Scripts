@@ -14,361 +14,360 @@ local ENEMY_LIST = {
 }
 local TELEPORT_MODES = {"Behind","Left","Right","In Front"}
 
-
 local DEFAULT_WALKSPEED = 16
 local DEFAULT_JUMPPOWER = 50
 
-local WIN_W, WIN_H = 360, 490 --
-local HEADER_H = 34
+local WIN_W, WIN_H = 380, 520
+local HEADER_H = 40
 local BODY_H = WIN_H - HEADER_H
 
-local gui = Instance.new("ScreenGui")
-gui.Name, gui.ResetOnSpawn = "GlassGUI", false
-gui.Parent = player:WaitForChild("PlayerGui")
+local Theme = {
+    Background = Color3.fromRGB(28, 30, 38),
+    LighterBackground = Color3.fromRGB(35, 38, 48),
+    ElementBackground = Color3.fromRGB(42, 45, 55),
+    TextPrimary = Color3.fromRGB(220, 225, 235),
+    TextSecondary = Color3.fromRGB(160, 165, 180),
+    TextDisabled = Color3.fromRGB(100, 105, 120),
+    Accent = Color3.fromRGB(80, 120, 255),
+    AccentHover = Color3.fromRGB(100, 140, 255),
+    Success = Color3.fromRGB(60, 170, 90),
+    SuccessHover = Color3.fromRGB(80, 190, 110),
+    Error = Color3.fromRGB(200, 70, 80),
+    ErrorHover = Color3.fromRGB(220, 90, 100),
+    BorderColor = Color3.fromRGB(55, 60, 75),
+    FontHeading = Enum.Font.GothamBold,
+    FontBody = Enum.Font.GothamSemibold,
+    FontSmall = Enum.Font.Gotham,
+    CornerRadius = UDim.new(0, 8),
+    SmallCornerRadius = UDim.new(0, 6),
+    StrokeThickness = 1,
+    BasePadding = 15,
+    SmallPadding = 10,
+    ItemSpacing = 8,
+    InitialTransparency = 0.1,
+    FadeTime = 0.2
+}
 
+local gui = Instance.new("ScreenGui")
+gui.Name, gui.ResetOnSpawn = "XoaGlassGUI_V2", false
+gui.Parent = player:WaitForChild("PlayerGui")
 
 local win = Instance.new("Frame", gui)
 win.Size = UDim2.new(0, WIN_W, 0, WIN_H)
 win.Position = UDim2.new(.5, -WIN_W/2, .5, -WIN_H/2)
 win.AnchorPoint = Vector2.new(.5,.5)
-win.BackgroundColor3 = Color3.fromRGB(30,30,40)
-win.BackgroundTransparency = .25
+win.BackgroundColor3 = Theme.Background
+win.BackgroundTransparency = Theme.InitialTransparency 
 win.Active, win.Draggable = true, true
-Instance.new("UICorner", win).CornerRadius = UDim.new(0,12)
+Instance.new("UICorner", win).CornerRadius = Theme.CornerRadius
 win.Transparency = 1
-
+Instance.new("UIStroke", win).Color = Theme.BorderColor
+win.ClipsDescendants = true
 
 local header = Instance.new("Frame", win)
 header.Size = UDim2.new(1,0,0,HEADER_H)
-header.BackgroundTransparency = 1
-local grad = Instance.new("UIGradient", header)
-grad.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(70,85,255)),
-    ColorSequenceKeypoint.new(.5, Color3.fromRGB(125,110,255)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(190,135,255)),
-}
+header.BackgroundColor3 = Theme.LighterBackground
+header.BorderSizePixel = 0
+
+local headerStroke = Instance.new("Frame", header)
+headerStroke.Size = UDim2.new(1,0,0,1)
+headerStroke.Position = UDim2.new(0,0,1,-1)
+headerStroke.BackgroundColor3 = Theme.BorderColor
+headerStroke.BorderSizePixel = 0
+
 local title = Instance.new("TextLabel", header)
-title.Size = UDim2.new(1,-40,1,0)
-title.Position = UDim2.new(0,16,0,0)
+title.Size = UDim2.new(1,- (HEADER_H + Theme.BasePadding),1,0)
+title.Position = UDim2.new(0,Theme.BasePadding,0,0)
 title.BackgroundTransparency = 1
 title.Text = "Xoa GUI"
-title.Font = Enum.Font.GothamBold
+title.Font = Theme.FontHeading
 title.TextSize = 18
-title.TextColor3 = Color3.new(1,1,1)
+title.TextColor3 = Theme.TextPrimary
 title.TextXAlignment = Enum.TextXAlignment.Left
+
 local close = Instance.new("TextButton", header)
-close.Size = UDim2.new(0,34,1,0)
-close.Position = UDim2.new(1,-34,0,0)
+close.Size = UDim2.new(0,HEADER_H,0,HEADER_H)
+close.Position = UDim2.new(1,-HEADER_H,0,0)
 close.BackgroundTransparency = 1
 close.Text = "✕"
-close.Font = Enum.Font.GothamBold
+close.Font = Theme.FontHeading
 close.TextSize = 18
-close.TextColor3 = Color3.fromRGB(255,90,90)
-
+close.TextColor3 = Theme.Error
+close.AutoButtonColor = false
 
 local body = Instance.new("Frame", win)
 body.Size = UDim2.new(1,0,1,-HEADER_H)
 body.Position = UDim2.new(0,0,0,HEADER_H)
 body.BackgroundTransparency = 1
+local bodyPadding = Instance.new("UIPadding", body)
+bodyPadding.PaddingLeft = UDim.new(0, Theme.BasePadding)
+bodyPadding.PaddingRight = UDim.new(0, Theme.BasePadding)
+bodyPadding.PaddingTop = UDim.new(0, Theme.BasePadding)
+bodyPadding.PaddingBottom = UDim.new(0, Theme.BasePadding)
 
+local bodyListLayout = Instance.new("UIListLayout", body)
+bodyListLayout.Padding = UDim.new(0, Theme.BasePadding + 5)
+bodyListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
-local function makeCycleBtn(char, x, y)
-    local btn = Instance.new("TextButton", body)
-    btn.Size = UDim2.new(0,24,0,24)
-    btn.Position = UDim2.new(0,x,0,y)
-    btn.BackgroundTransparency = 1
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 18
-    btn.TextColor3 = Color3.fromRGB(200,200,200)
-    btn.Text = char
-    btn.AutoButtonColor = false
-    return btn
+local function styleTextLabel(label, font, size, color)
+    label.Font = font or Theme.FontBody
+    label.TextSize = size or 14
+    label.TextColor3 = color or Theme.TextSecondary
+    label.BackgroundTransparency = 1
 end
 
-local section1Label = Instance.new("TextLabel", body)
-section1Label.Size = UDim2.new(0,160,0,24)
-section1Label.Position = UDim2.new(0,10,0,10)
-section1Label.BackgroundTransparency = 1
-section1Label.Font = Enum.Font.GothamBold
-section1Label.TextSize = 18
-section1Label.TextColor3 = Color3.new(1,1,1)
+local function styleButton(button, bgColor, hoverColor, textColor, text)
+    button.BackgroundColor3 = bgColor
+    button.TextColor3 = textColor or Theme.TextPrimary
+    button.Font = Theme.FontBody
+    button.TextSize = 14
+    button.Text = text or button.Text
+    button.AutoButtonColor = false
+    Instance.new("UICorner", button).CornerRadius = Theme.SmallCornerRadius
+    local stroke = Instance.new("UIStroke", button)
+    stroke.Color = Theme.BorderColor
+    stroke.Thickness = Theme.StrokeThickness
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    return button
+end
+
+local function tween(o, props, t, easingStyle, easingDirection)
+    return TweenService:Create(o, TweenInfo.new(t or Theme.FadeTime, easingStyle or Enum.EasingStyle.Quad, easingDirection or Enum.EasingDirection.Out), props)
+end
+
+local function addHoverEffect(button, normalColor, hoverColor, textNormalColor, textHoverColor)
+    textNormalColor = textNormalColor or button.TextColor3
+    textHoverColor = textHoverColor or textNormalColor
+    
+    local originalStrokeColor = button:FindFirstChildOfClass("UIStroke") and button:FindFirstChildOfClass("UIStroke").Color or Theme.BorderColor
+    local hoverStrokeColor = Color3.fromRGB(
+        math.min(255, originalStrokeColor.r * 255 + 20),
+        math.min(255, originalStrokeColor.g * 255 + 20),
+        math.min(255, originalStrokeColor.b * 255 + 20)
+    )
+
+    button.MouseEnter:Connect(function()
+        tween(button, {BackgroundColor3 = hoverColor, TextColor3 = textHoverColor}, 0.1):Play()
+        if button:FindFirstChildOfClass("UIStroke") then
+            tween(button:FindFirstChildOfClass("UIStroke"), {Color = hoverStrokeColor}, 0.1):Play()
+        end
+    end)
+    button.MouseLeave:Connect(function()
+        tween(button, {BackgroundColor3 = normalColor, TextColor3 = textNormalColor}, 0.1):Play()
+         if button:FindFirstChildOfClass("UIStroke") then
+            tween(button:FindFirstChildOfClass("UIStroke"), {Color = originalStrokeColor}, 0.1):Play()
+        end
+    end)
+end
+
+addHoverEffect(close, Theme.LighterBackground, Theme.Error, Theme.Error, Theme.TextPrimary)
+
+local section1Frame = Instance.new("Frame", body)
+section1Frame.Name = "AutoKillSection"
+section1Frame.LayoutOrder = 1
+section1Frame.BackgroundTransparency = 1
+section1Frame.Size = UDim2.new(1, 0, 0, 212) 
+local section1Layout = Instance.new("UIListLayout", section1Frame)
+section1Layout.Padding = UDim.new(0, Theme.ItemSpacing)
+section1Layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local section1Label = Instance.new("TextLabel", section1Frame)
+section1Label.LayoutOrder = 1
+section1Label.Size = UDim2.new(1,0,0,24)
+styleTextLabel(section1Label, Theme.FontHeading, 18, Theme.TextPrimary)
 section1Label.Text = "Auto Kill"
+section1Label.TextXAlignment = Enum.TextXAlignment.Center
 
+local enemyRow = Instance.new("Frame", section1Frame)
+enemyRow.LayoutOrder = 2
+enemyRow.BackgroundTransparency = 1
+enemyRow.Size = UDim2.new(1,0,0,28)
+local enemyRowLayout = Instance.new("UIListLayout", enemyRow)
+enemyRowLayout.FillDirection = Enum.FillDirection.Horizontal
+enemyRowLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+enemyRowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+enemyRowLayout.Padding = UDim.new(0, Theme.SmallPadding)
 
-local labelEnemy = Instance.new("TextLabel", body)
-labelEnemy.Size = UDim2.new(0,140,0,20)
-labelEnemy.Position = UDim2.new(0,10,0,40)
-labelEnemy.BackgroundTransparency = 1
-labelEnemy.Font = Enum.Font.Gotham
-labelEnemy.TextSize = 14
-labelEnemy.TextColor3 = Color3.new(1,1,1)
-labelEnemy.Text = "Enemy Selected: " -- Added space here
-local selText = Instance.new("TextLabel", body)
-selText.Size = UDim2.new(0,140,0,20)
-selText.Position = UDim2.new(0,150,0,40)
-selText.BackgroundTransparency = 1
-selText.Font = Enum.Font.Gotham
-selText.TextSize = 14
-selText.TextColor3 = Color3.fromRGB(180,180,180)
+local prevEnemy = styleButton(Instance.new("TextButton", enemyRow), Theme.ElementBackground, Theme.AccentHover, Theme.TextSecondary, "⟨")
+prevEnemy.Size = UDim2.new(0,28,0,28)
+addHoverEffect(prevEnemy, Theme.ElementBackground, Theme.Accent, Theme.TextSecondary, Theme.TextPrimary)
+
+local nextEnemy = styleButton(Instance.new("TextButton", enemyRow), Theme.ElementBackground, Theme.AccentHover, Theme.TextSecondary, "⟩")
+nextEnemy.Size = UDim2.new(0,28,0,28)
+addHoverEffect(nextEnemy, Theme.ElementBackground, Theme.Accent, Theme.TextSecondary, Theme.TextPrimary)
+
+local labelEnemy = Instance.new("TextLabel", enemyRow)
+labelEnemy.Size = UDim2.new(0,70,1,0) 
+styleTextLabel(labelEnemy, Theme.FontBody, 14, Theme.TextSecondary)
+labelEnemy.Text = " Enemy:" 
+labelEnemy.TextXAlignment = Enum.TextXAlignment.Left
+
+local selText = Instance.new("TextLabel", enemyRow)
+local selTextOffset = 28+28+70 + (Theme.SmallPadding*3)
+selText.Size = UDim2.new(1,-selTextOffset,1,0)
+styleTextLabel(selText, Theme.FontBody, 14, Theme.TextPrimary)
 selText.Text = ENEMY_LIST[1]
-local prevEnemy = makeCycleBtn("⟨", 120, 36)
-local nextEnemy = makeCycleBtn("⟩", 310, 36)
+selText.TextXAlignment = Enum.TextXAlignment.Right
 local selEnemyIdx = 1
 
+local modeRow = Instance.new("Frame", section1Frame)
+modeRow.LayoutOrder = 3
+modeRow.BackgroundTransparency = 1
+modeRow.Size = UDim2.new(1,0,0,28)
+local modeRowLayout = Instance.new("UIListLayout", modeRow)
+modeRowLayout.FillDirection = Enum.FillDirection.Horizontal
+modeRowLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+modeRowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+modeRowLayout.Padding = UDim.new(0, Theme.SmallPadding)
 
-local labelMode = Instance.new("TextLabel", body)
-labelMode.Size = UDim2.new(0,140,0,20)
-labelMode.Position = UDim2.new(0,10,0,70)
-labelMode.BackgroundTransparency = 1
-labelMode.Font = Enum.Font.Gotham
-labelMode.TextSize = 14
-labelMode.TextColor3 = Color3.new(1,1,1)
-labelMode.Text = "Mode:"
-local modeText = Instance.new("TextLabel", body)
-modeText.Size = UDim2.new(0,140,0,20)
-modeText.Position = UDim2.new(0,150,0,70)
-modeText.BackgroundTransparency = 1
-modeText.Font = Enum.Font.Gotham
-modeText.TextSize = 14
-modeText.TextColor3 = Color3.fromRGB(180,180,180)
+local prevMode = styleButton(Instance.new("TextButton", modeRow), Theme.ElementBackground, Theme.AccentHover, Theme.TextSecondary, "⟨")
+prevMode.Size = UDim2.new(0,28,0,28)
+addHoverEffect(prevMode, Theme.ElementBackground, Theme.Accent, Theme.TextSecondary, Theme.TextPrimary)
+
+local nextMode = styleButton(Instance.new("TextButton", modeRow), Theme.ElementBackground, Theme.AccentHover, Theme.TextSecondary, "⟩")
+nextMode.Size = UDim2.new(0,28,0,28)
+addHoverEffect(nextMode, Theme.ElementBackground, Theme.Accent, Theme.TextSecondary, Theme.TextPrimary)
+
+local labelMode = Instance.new("TextLabel", modeRow)
+labelMode.Size = UDim2.new(0,70,1,0)
+styleTextLabel(labelMode, Theme.FontBody, 14, Theme.TextSecondary)
+labelMode.Text = " Mode:"
+labelMode.TextXAlignment = Enum.TextXAlignment.Left
+
+local modeText = Instance.new("TextLabel", modeRow)
+local modeTextOffset = 28+28+70 + (Theme.SmallPadding*3)
+modeText.Size = UDim2.new(1,-modeTextOffset,1,0)
+styleTextLabel(modeText, Theme.FontBody, 14, Theme.TextPrimary)
 modeText.Text = TELEPORT_MODES[1]
-local prevMode = makeCycleBtn("⟨", 120, 66)
-local nextMode = makeCycleBtn("⟩", 310, 66)
+modeText.TextXAlignment = Enum.TextXAlignment.Right
 local selModeIdx = 1
 
+local distRow = Instance.new("Frame", section1Frame)
+distRow.LayoutOrder = 4
+distRow.BackgroundTransparency = 1
+distRow.Size = UDim2.new(1,0,0,28)
+local distRowLayout = Instance.new("UIListLayout", distRow)
+distRowLayout.FillDirection = Enum.FillDirection.Horizontal
+distRowLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+distRowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+distRowLayout.Padding = UDim.new(0, Theme.SmallPadding)
 
-local labelDist = Instance.new("TextLabel", body)
-labelDist.Size = UDim2.new(0,140,0,20)
-labelDist.Position = UDim2.new(0,10,0,100)
-labelDist.BackgroundTransparency = 1
-labelDist.Font = Enum.Font.Gotham
-labelDist.TextSize = 14
-labelDist.TextColor3 = Color3.new(1,1,1)
-labelDist.Text = "Distance:"
-local distBox = Instance.new("TextBox", body)
-distBox.Size = UDim2.new(0,80,0,24)
-distBox.Position = UDim2.new(0,150,0,96)
-distBox.BackgroundColor3 = Color3.fromRGB(50,50,65)
-distBox.TextColor3 = Color3.new(1,1,1)
-distBox.Font = Enum.Font.Gotham
+local distBox = Instance.new("TextBox", distRow)
+distBox.Size = UDim2.new(0, 80, 1, 0)
+distBox.BackgroundColor3 = Theme.ElementBackground
+distBox.TextColor3 = Theme.TextPrimary
+distBox.Font = Theme.FontBody
 distBox.TextSize = 14
 distBox.Text = tostring(DEFAULT_DIST)
 distBox.ClearTextOnFocus = false
-Instance.new("UICorner", distBox).CornerRadius = UDim.new(0,6)
+Instance.new("UICorner", distBox).CornerRadius = Theme.SmallCornerRadius
+local distBoxStroke = Instance.new("UIStroke", distBox)
+distBoxStroke.Color = Theme.BorderColor
+distBoxStroke.Thickness = Theme.StrokeThickness
+local distBoxPadding = Instance.new("UIPadding", distBox)
+distBoxPadding.PaddingLeft = UDim.new(0, Theme.SmallPadding)
+distBoxPadding.PaddingRight = UDim.new(0, Theme.SmallPadding)
+distBox.TextXAlignment = Enum.TextXAlignment.Center
 local distance = DEFAULT_DIST
 
-local akToggle = Instance.new("TextButton", body)
-akToggle.Size = UDim2.new(0,140,0,28)
-akToggle.Position = UDim2.new(.5, -70, 0, 130)
-akToggle.Font = Enum.Font.GothamBold
-akToggle.TextSize = 14
-akToggle.TextColor3 = Color3.new(1,1,1)
-akToggle.Text = "Auto Kill [OFF]"
-akToggle.BackgroundColor3 = Color3.fromRGB(180,80,90)
-akToggle.AutoButtonColor = false
-Instance.new("UICorner", akToggle).CornerRadius = UDim.new(0,8)
+local labelDist = Instance.new("TextLabel", distRow)
+labelDist.Size = UDim2.new(1, -(80 + Theme.SmallPadding), 1, 0)
+styleTextLabel(labelDist, Theme.FontBody, 14, Theme.TextSecondary)
+labelDist.Text = " Distance:"
+labelDist.TextXAlignment = Enum.TextXAlignment.Left
 
+local akToggle = styleButton(Instance.new("TextButton", section1Frame), Theme.Error, Theme.ErrorHover, Theme.TextPrimary, "Auto Kill [OFF]")
+akToggle.LayoutOrder = 5
+akToggle.Size = UDim2.new(1,0,0,32)
 
-local freezeToggle = Instance.new("TextButton", body)
-freezeToggle.Size = UDim2.new(0,140,0,28)
-freezeToggle.Position = UDim2.new(.5, -70, 0, 168)
-freezeToggle.Font = Enum.Font.GothamBold
-freezeToggle.TextSize = 14
-freezeToggle.TextColor3 = Color3.new(1,1,1)
-freezeToggle.Text = "Freeze [OFF]"
-freezeToggle.BackgroundColor3 = Color3.fromRGB(180,80,90)
-freezeToggle.AutoButtonColor = false
-Instance.new("UICorner", freezeToggle).CornerRadius = UDim.new(0,8)
+local freezeToggle = styleButton(Instance.new("TextButton", section1Frame), Theme.Error, Theme.ErrorHover, Theme.TextPrimary, "Freeze [OFF]")
+freezeToggle.LayoutOrder = 6
+freezeToggle.Size = UDim2.new(1,0,0,32)
 local isFrozen = false
 
+local section2Frame = Instance.new("Frame", body)
+section2Frame.Name = "TeleportSection"
+section2Frame.LayoutOrder = 2
+section2Frame.BackgroundTransparency = 1
+section2Frame.Size = UDim2.new(1, 0, 0, 190)
+local section2Layout = Instance.new("UIListLayout", section2Frame)
+section2Layout.Padding = UDim.new(0, Theme.ItemSpacing)
+section2Layout.SortOrder = Enum.SortOrder.LayoutOrder
 
-local section2Label = Instance.new("TextLabel", body)
-section2Label.Size = UDim2.new(0,160,0,24)
-section2Label.Position = UDim2.new(0,10,0,210)
-section2Label.BackgroundTransparency = 1
-section2Label.Font = Enum.Font.GothamBold
-section2Label.TextSize = 18
-section2Label.TextColor3 = Color3.new(1,1,1)
+local section2Label = Instance.new("TextLabel", section2Frame)
+section2Label.LayoutOrder = 1
+section2Label.Size = UDim2.new(1,0,0,24)
+styleTextLabel(section2Label, Theme.FontHeading, 18, Theme.TextPrimary)
 section2Label.Text = "Teleport"
+section2Label.TextXAlignment = Enum.TextXAlignment.Center
 
-
-local teleportContainer = Instance.new("Frame", body)
-teleportContainer.Size = UDim2.new(1, -20, 0, 160)
-teleportContainer.Position = UDim2.new(0, 10, 0, 240)
-
+local teleportContainer = Instance.new("Frame", section2Frame)
+teleportContainer.LayoutOrder = 2
+teleportContainer.Size = UDim2.new(1, 0, 0, 158)
 teleportContainer.BackgroundTransparency = 1
 
 local gridLayout = Instance.new("UIGridLayout", teleportContainer)
-gridLayout.CellSize = UDim2.new(0.5, -10, 0, 28)
-gridLayout.CellPadding = UDim2.new(0, 10, 0, 10)
+gridLayout.CellSize = UDim2.new(0.5, -Theme.SmallPadding/2, 0, 32)
+gridLayout.CellPadding = UDim2.new(0, Theme.SmallPadding, 0, Theme.SmallPadding)
 gridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 gridLayout.VerticalAlignment = Enum.VerticalAlignment.Top
 gridLayout.FillDirection = Enum.FillDirection.Horizontal
 gridLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
-local catButton = Instance.new("TextButton", teleportContainer)
-catButton.Name = "CatacombsButton"
-catButton.LayoutOrder = 1
-catButton.Size = UDim2.new(1,0,1,0)
-catButton.Font = Enum.Font.GothamBold
-catButton.TextSize = 14
-catButton.TextColor3 = Color3.new(1,1,1)
-catButton.Text = "Go to Catacombs"
-catButton.BackgroundColor3 = Color3.fromRGB(80,80,120)
-catButton.AutoButtonColor = false
-Instance.new("UICorner", catButton).CornerRadius = UDim.new(0,8)
+local teleportButtonData = {
+    {Name = "Catacombs", Text = "Catacombs"},
+    {Name = "Shop", Text = "Shop"},
+    {Name = "Center", Text = "Center"},
+    {Name = "Forge", Text = "Forge"},
+    {Name = "World5", Text = "World 5"},
+    {Name = "Lunar", Text = "Lunar"},
+    {Name = "Spawn", Text = "Spawn"},
+}
 
-local shopButton = Instance.new("TextButton", teleportContainer)
-shopButton.Name = "ShopButton"
-shopButton.LayoutOrder = 2
-shopButton.Size = UDim2.new(1,0,1,0)
-shopButton.Font = Enum.Font.GothamBold
-shopButton.TextSize = 14
-shopButton.TextColor3 = Color3.new(1,1,1)
-shopButton.Text = "Go to Shop"
-shopButton.BackgroundColor3 = Color3.fromRGB(80,80,120)
-shopButton.AutoButtonColor = false
-Instance.new("UICorner", shopButton).CornerRadius = UDim.new(0,8)
-
-local centerButton = Instance.new("TextButton", teleportContainer)
-centerButton.Name = "CenterButton"
-centerButton.LayoutOrder = 3
-centerButton.Size = UDim2.new(1,0,1,0)
-centerButton.Font = Enum.Font.GothamBold
-centerButton.TextSize = 14
-centerButton.TextColor3 = Color3.new(1,1,1)
-centerButton.Text = "Go to Center"
-centerButton.BackgroundColor3 = Color3.fromRGB(80,80,120)
-centerButton.AutoButtonColor = false
-Instance.new("UICorner", centerButton).CornerRadius = UDim.new(0,8)
-
-local forgeButton = Instance.new("TextButton", teleportContainer)
-forgeButton.Name = "ForgeButton"
-forgeButton.LayoutOrder = 4
-forgeButton.Size = UDim2.new(1,0,1,0)
-forgeButton.Font = Enum.Font.GothamBold
-forgeButton.TextSize = 14
-forgeButton.TextColor3 = Color3.new(1,1,1)
-forgeButton.Text = "Go to Forge"
-forgeButton.BackgroundColor3 = Color3.fromRGB(80,80,120)
-forgeButton.AutoButtonColor = false
-Instance.new("UICorner", forgeButton).CornerRadius = UDim.new(0,8)
-
-local world5Button = Instance.new("TextButton", teleportContainer)
-world5Button.Name = "World5Button"
-world5Button.LayoutOrder = 5
-world5Button.Size = UDim2.new(1,0,1,0)
-world5Button.Font = Enum.Font.GothamBold
-world5Button.TextSize = 14
-world5Button.TextColor3 = Color3.new(1,1,1)
-world5Button.Text = "Go to World5"
-world5Button.BackgroundColor3 = Color3.fromRGB(80,80,120)
-world5Button.AutoButtonColor = false
-Instance.new("UICorner", world5Button).CornerRadius = UDim.new(0,8)
-
-local lunarButton = Instance.new("TextButton", teleportContainer)
-lunarButton.Name = "LunarButton"
-lunarButton.LayoutOrder = 6
-lunarButton.Size = UDim2.new(1,0,1,0)
-lunarButton.Font = Enum.Font.GothamBold
-lunarButton.TextSize = 14
-lunarButton.TextColor3 = Color3.new(1,1,1)
-lunarButton.Text = "Go to Lunar"
-lunarButton.BackgroundColor3 = Color3.fromRGB(80,80,120)
-lunarButton.AutoButtonColor = false
-Instance.new("UICorner", lunarButton).CornerRadius = UDim.new(0,8)
-
--- Spawn button
-local spawnButton = Instance.new("TextButton", teleportContainer)
-spawnButton.Name = "SpawnButton"
-spawnButton.LayoutOrder = 7
-spawnButton.Size = UDim2.new(1,0,1,0)
-spawnButton.Font = Enum.Font.GothamBold
-spawnButton.TextSize = 14
-spawnButton.TextColor3 = Color3.new(1,1,1)
-spawnButton.Text = "Go to Spawn"
-spawnButton.BackgroundColor3 = Color3.fromRGB(80,80,120)
-spawnButton.AutoButtonColor = false
-Instance.new("UICorner", spawnButton).CornerRadius = UDim.new(0,8)
-
-local function tween(o, props, t, easingStyle, easingDirection)
-    TweenService:Create(o, TweenInfo.new(t or .25, easingStyle or Enum.EasingStyle.Quad, easingDirection or Enum.EasingDirection.Out), props):Play()
+local teleportButtons = {}
+for i, data in ipairs(teleportButtonData) do
+    local btn = styleButton(Instance.new("TextButton", teleportContainer), Theme.ElementBackground, Theme.AccentHover, Theme.TextPrimary, data.Text)
+    btn.Name = data.Name .. "Button"
+    btn.LayoutOrder = i
+    addHoverEffect(btn, Theme.ElementBackground, Theme.Accent, Theme.TextSecondary, Theme.TextPrimary)
+    teleportButtons[data.Name] = btn
 end
 
-local function addHoverEffect(button, normalColor, hoverColor)
-    button.MouseEnter:Connect(function()
-        tween(button, {BackgroundColor3 = hoverColor})
-    end)
-    button.MouseLeave:Connect(function()
-        tween(button, {BackgroundColor3 = normalColor})
-    end)
-end
-
-local OFF_COLOR = Color3.fromRGB(180,80,90)
-local ON_COLOR = Color3.fromRGB(80,180,100)
-local OFF_HOVER_COLOR = Color3.fromRGB(200,100,110)
-local ON_HOVER_COLOR = Color3.fromRGB(100,200,120)
-
-
-addHoverEffect(close, Color3.fromRGB(255,90,90), Color3.fromRGB(255,120,120))
-addHoverEffect(prevEnemy, Color3.fromRGB(200,200,200), Color3.new(1,1,1))
-addHoverEffect(nextEnemy, Color3.fromRGB(200,200,200), Color3.new(1,1,1))
-addHoverEffect(prevMode, Color3.fromRGB(200,200,200), Color3.new(1,1,1))
-addHoverEffect(nextMode, Color3.fromRGB(200,200,200), Color3.new(1,1,1))
-
-
+local looping = false
 akToggle.MouseEnter:Connect(function()
-
-    TweenService:Cancel(akToggle)
     if looping then
-        tween(akToggle, {BackgroundColor3 = ON_HOVER_COLOR}, 0.1)
+        tween(akToggle, {BackgroundColor3 = Theme.SuccessHover}, 0.1):Play()
     else
-        tween(akToggle, {BackgroundColor3 = OFF_HOVER_COLOR}, 0.1)
+        tween(akToggle, {BackgroundColor3 = Theme.ErrorHover}, 0.1):Play()
     end
 end)
 akToggle.MouseLeave:Connect(function()
-
-     TweenService:Cancel(akToggle)
-
      if looping then
-        tween(akToggle, {BackgroundColor3 = ON_COLOR}, 0.1)
+        tween(akToggle, {BackgroundColor3 = Theme.Success}, 0.1):Play()
     else
-        tween(akToggle, {BackgroundColor3 = OFF_COLOR}, 0.1)
+        tween(akToggle, {BackgroundColor3 = Theme.Error}, 0.1):Play()
     end
 end)
 
-
 freezeToggle.MouseEnter:Connect(function()
-    TweenService:Cancel(freezeToggle)
     if isFrozen then
-        tween(freezeToggle, {BackgroundColor3 = ON_HOVER_COLOR}, 0.1)
+        tween(freezeToggle, {BackgroundColor3 = Theme.SuccessHover}, 0.1):Play()
     else
-        tween(freezeToggle, {BackgroundColor3 = OFF_HOVER_COLOR}, 0.1)
+        tween(freezeToggle, {BackgroundColor3 = Theme.ErrorHover}, 0.1):Play()
     end
 end)
 freezeToggle.MouseLeave:Connect(function()
-     TweenService:Cancel(freezeToggle)
      if isFrozen then
-        tween(freezeToggle, {BackgroundColor3 = ON_COLOR}, 0.1)
+        tween(freezeToggle, {BackgroundColor3 = Theme.Success}, 0.1):Play()
     else
-        tween(freezeToggle, {BackgroundColor3 = OFF_COLOR}, 0.1)
+        tween(freezeToggle, {BackgroundColor3 = Theme.Error}, 0.1):Play()
     end
 end)
 
-local normalTeleportColor = Color3.fromRGB(80,80,120)
-local hoverTeleportColor = Color3.fromRGB(100,100,150)
-addHoverEffect(catButton, normalTeleportColor, hoverTeleportColor)
-addHoverEffect(shopButton, normalTeleportColor, hoverTeleportColor)
-addHoverEffect(centerButton, normalTeleportColor, hoverTeleportColor)
-addHoverEffect(forgeButton, normalTeleportColor, hoverTeleportColor)
-addHoverEffect(world5Button, normalTeleportColor, hoverTeleportColor)
-addHoverEffect(lunarButton, normalTeleportColor, hoverTeleportColor)
-addHoverEffect(spawnButton, normalTeleportColor, hoverTeleportColor)
-
-
+local currentRootPart, currentHumanoid, conn = nil,nil,nil
 
 prevEnemy.MouseButton1Click:Connect(function()
-    selEnemyIdx = ((selEnemyIdx-2)%#ENEMY_LIST)+1
+    selEnemyIdx = ((selEnemyIdx-2+#ENEMY_LIST)%#ENEMY_LIST)+1
     selText.Text = ENEMY_LIST[selEnemyIdx]
     currentRootPart, currentHumanoid = nil, nil
 end)
@@ -378,19 +377,33 @@ nextEnemy.MouseButton1Click:Connect(function()
     currentRootPart, currentHumanoid = nil, nil
 end)
 prevMode.MouseButton1Click:Connect(function()
-    selModeIdx = ((selModeIdx-2)%#TELEPORT_MODES)+1
+    selModeIdx = ((selModeIdx-2+#TELEPORT_MODES)%#TELEPORT_MODES)+1
     modeText.Text = TELEPORT_MODES[selModeIdx]
 end)
 nextMode.MouseButton1Click:Connect(function()
     selModeIdx = (selModeIdx%#TELEPORT_MODES)+1
     modeText.Text = TELEPORT_MODES[selModeIdx]
 end)
-distBox.FocusLost:Connect(function()
+
+distBox.FocusLost:Connect(function(enterPressed)
+    if not enterPressed then return end
     local v = tonumber(distBox.Text)
-    if v and v > 0 then distance = v else distBox.Text = tostring(distance) end
+    if v and v > 0 then 
+        distance = v 
+    else 
+        distBox.Text = tostring(distance)
+    end
 end)
-
-
+distBox.InputEnded:Connect(function(inputObject)
+	if inputObject.KeyCode == Enum.KeyCode.Return or inputObject.UserInputType == Enum.UserInputType.Focus then
+		local v = tonumber(distBox.Text)
+		if v and v > 0 then
+			distance = v
+		else
+			distBox.Text = tostring(distance)
+		end
+	end
+end)
 
 freezeToggle.MouseButton1Click:Connect(function()
     isFrozen = not isFrozen
@@ -401,14 +414,11 @@ freezeToggle.MouseButton1Click:Connect(function()
     if hum and root then 
         if isFrozen then
             freezeToggle.Text = "Freeze [ON]"
-            tween(freezeToggle, {BackgroundColor3 = ON_COLOR}, 0.1)
-
+            tween(freezeToggle, {BackgroundColor3 = Theme.Success}, 0.1):Play()
             root.Anchored = true
- 
         else
             freezeToggle.Text = "Freeze [OFF]"
-            tween(freezeToggle, {BackgroundColor3 = OFF_COLOR}, 0.1)
-
+            tween(freezeToggle, {BackgroundColor3 = Theme.Error}, 0.1):Play()
             root.Anchored = false
             hum.WalkSpeed = DEFAULT_WALKSPEED
             hum.JumpPower = DEFAULT_JUMPPOWER
@@ -416,15 +426,13 @@ freezeToggle.MouseButton1Click:Connect(function()
     else
         isFrozen = false
         freezeToggle.Text = "Freeze [OFF]"
-        tween(freezeToggle, {BackgroundColor3 = OFF_COLOR}, 0.1)
+        tween(freezeToggle, {BackgroundColor3 = Theme.Error}, 0.1):Play()
         if hum then
             hum.WalkSpeed = DEFAULT_WALKSPEED
             hum.JumpPower = DEFAULT_JUMPPOWER
         end
     end
 end)
-
-
 
 local function pickNewTarget()
     local name = ENEMY_LIST[selEnemyIdx]
@@ -434,7 +442,7 @@ local function pickNewTarget()
             if obj.Name == "Templar" then
                 local h = obj:FindFirstChildOfClass("Humanoid")
                 local r = obj:FindFirstChild("HumanoidRootPart")
-                if h and r and h.Health > 0 then pool[#pool+1] = {hum=h,hrp=r} end
+                if h and r and h.Health > 0 then table.insert(pool, {hum=h,hrp=r}) end
             end
         end
     else
@@ -444,7 +452,7 @@ local function pickNewTarget()
                 if npc.Name == name then
                     local h = npc:FindFirstChildOfClass("Humanoid")
                     local r = npc:FindFirstChild("HumanoidRootPart")
-                    if h and r and h.Health > 0 then pool[#pool+1] = {hum=h,hrp=r} end
+                    if h and r and h.Health > 0 then table.insert(pool, {hum=h,hrp=r}) end
                 end
             end
         end
@@ -454,7 +462,6 @@ local function pickNewTarget()
     return pick.hrp, pick.hum
 end
 
-
 local function computeOffset(hrp)
     local mode = TELEPORT_MODES[selModeIdx]
     if mode=="Left" then
@@ -463,18 +470,16 @@ local function computeOffset(hrp)
         return hrp.CFrame.RightVector*distance + Vector3.new(0,0.5,0)
     elseif mode=="In Front" then
         return hrp.CFrame.LookVector*distance + Vector3.new(0,0.5,0)
-    else -- Behind
+    else 
         return -hrp.CFrame.LookVector*distance + Vector3.new(0,0.5,0)
     end
 end
 
-
-local looping, currentRootPart, currentHumanoid, conn = false,nil,nil,nil
 akToggle.MouseButton1Click:Connect(function()
     looping = not looping
     if looping then
         akToggle.Text="Auto Kill [ON]"
-        tween(akToggle,{BackgroundColor3=ON_COLOR}, 0.1)
+        tween(akToggle,{BackgroundColor3=Theme.Success}, 0.1):Play()
         conn = RunService.RenderStepped:Connect(function()
             if not looping then conn:Disconnect() return end
             local char = player.Character
@@ -497,55 +502,19 @@ akToggle.MouseButton1Click:Connect(function()
         end)
     else
         akToggle.Text="Auto Kill [OFF]"
-        tween(akToggle,{BackgroundColor3=OFF_COLOR}, 0.1)
-        if conn then conn:Disconnect() end
+        tween(akToggle,{BackgroundColor3=Theme.Error}, 0.1):Play()
+        if conn then conn:Disconnect() conn = nil end
+        currentRootPart, currentHumanoid = nil, nil
     end
 end)
 
-
-local catacombCFrame = CFrame.new(
-    15.5421543,1001.54987,1934.12659,
-    0.999988437,-8.50913207e-09,-0.00481195468,
-    8.4932994e-09,1,-3.31070593e-09,
-    0.00481195468,3.26979821e-09,0.999988437
-)
-local shopCFrame = CFrame.new(
-    -14.7686348,1050.29968,1589.06433,
-     0.0193766598,7.89141765e-08,0.999812245,
-    -7.06436376e-09,1,-7.8792084e-08,
-    -0.999812245,-5.53631008e-09,0.0193766598
-)
-local centerCFrame = CFrame.new(
-    -0.510471404,17.9268513,-0.438998461,
-    0.999873281,1.11984564e-08,0.0159174222,
-   -1.00508011e-08,1,-7.21806117e-08,
-   -0.0159174222,7.20114883e-08,0.999873281
-)
-local forgeCFrame = CFrame.new(
-    19.6826744,114.999527,-686.596375,
-    0.999661922,8.8900336e-08,-0.0259998851,
-   -9.03706336e-08,1,-5.53751107e-08,
-    0.0259998851,5.77060177e-08,0.999661922
-)
-local world5CFrame = CFrame.new(
-    -672.078674,90.2001419,-63.26297,
-    0.999780536,-2.07682955e-08,-0.0209496059,
-    2.1048816e-08,1,1.31697169e-08,
-    0.0209496059,-1.36077905e-08,0.999780536
-)
-local lunarCFrame = CFrame.new(
-    658.717102,54.4881744,-116.490791,
-   -0.00887010898,-2.26808616e-08,0.999960661,
-   -3.4893759e-08,1,2.23722303e-08,
-   -0.999960661,-3.46939402e-08,-0.00887010898
-)
-local spawnCFrame = CFrame.new(
-    0.00931245182, 153.499985, -0.00115543325,
-    0.999999225, -5.13107556e-09, 0.00124784897,
-    5.05472642e-09, 1, 6.11879258e-08,
-    -0.00124784897, -6.11815665e-08, 0.999999225
-)
-
+local catacombCFrame = CFrame.new(15.5421543,1001.54987,1934.12659,0.999988437,-8.50913207e-09,-0.00481195468,8.4932994e-09,1,-3.31070593e-09,0.00481195468,3.26979821e-09,0.999988437)
+local shopCFrame = CFrame.new(-14.7686348,1050.29968,1589.06433,0.0193766598,7.89141765e-08,0.999812245,-7.06436376e-09,1,-7.8792084e-08,-0.999812245,-5.53631008e-09,0.0193766598)
+local centerCFrame = CFrame.new(-0.510471404,17.9268513,-0.438998461,0.999873281,1.11984564e-08,0.0159174222,-1.00508011e-08,1,-7.21806117e-08,-0.0159174222,7.20114883e-08,0.999873281)
+local forgeCFrame = CFrame.new(19.6826744,114.999527,-686.596375,0.999661922,8.8900336e-08,-0.0259998851,-9.03706336e-08,1,-5.53751107e-08,0.0259998851,5.77060177e-08,0.999661922)
+local world5CFrame = CFrame.new(-672.078674,90.2001419,-63.26297,0.999780536,-2.07682955e-08,-0.0209496059,2.1048816e-08,1,1.31697169e-08,0.0209496059,-1.36077905e-08,0.999780536)
+local lunarCFrame = CFrame.new(658.717102,54.4881744,-116.490791,-0.00887010898,-2.26808616e-08,0.999960661,-3.4893759e-08,1,2.23722303e-08,-0.999960661,-3.46939402e-08,-0.00887010898)
+local spawnCFrame = CFrame.new(0.00931245182, 153.499985, -0.00115543325,0.999999225, -5.13107556e-09, 0.00124784897,5.05472642e-09, 1, 6.11879258e-08,-0.00124784897, -6.11815665e-08, 0.999999225)
 
 local function teleportTo(cf)
     local char = player.Character
@@ -553,33 +522,36 @@ local function teleportTo(cf)
     if root then root.CFrame = cf end
 end
 
-catButton.MouseButton1Click:Connect(function() teleportTo(catacombCFrame) end)
-shopButton.MouseButton1Click:Connect(function() teleportTo(shopCFrame) end)
-centerButton.MouseButton1Click:Connect(function() teleportTo(centerCFrame) end)
-forgeButton.MouseButton1Click:Connect(function() teleportTo(forgeCFrame) end)
-world5Button.MouseButton1Click:Connect(function() teleportTo(world5CFrame) end)
-lunarButton.MouseButton1Click:Connect(function() teleportTo(lunarCFrame) end)
-spawnButton.MouseButton1Click:Connect(function() teleportTo(spawnCFrame) end)
+teleportButtons.Catacombs.MouseButton1Click:Connect(function() teleportTo(catacombCFrame) end)
+teleportButtons.Shop.MouseButton1Click:Connect(function() teleportTo(shopCFrame) end)
+teleportButtons.Center.MouseButton1Click:Connect(function() teleportTo(centerCFrame) end)
+teleportButtons.Forge.MouseButton1Click:Connect(function() teleportTo(forgeCFrame) end)
+teleportButtons.World5.MouseButton1Click:Connect(function() teleportTo(world5CFrame) end)
+teleportButtons.Lunar.MouseButton1Click:Connect(function() teleportTo(lunarCFrame) end)
+teleportButtons.Spawn.MouseButton1Click:Connect(function() teleportTo(spawnCFrame) end)
 
-local visible = true
-local function setVisible(v)
+local visible = false
+local function setVisibleState(v)
     visible = (v~=nil) and v or not visible
     if visible then
         win.Visible = true
-        tween(win, {Transparency = .25})
+        tween(win, {Transparency = Theme.InitialTransparency}, Theme.FadeTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out):Play()
     else
-        tween(win, {Transparency = 1}, nil, Enum.EasingStyle.Quad, Enum.EasingDirection.In) -- Fade out
-        TweenService:Create(win, TweenInfo.new(.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Transparency = 1}):Play()
-        task.wait(.25)
-        win.Visible = false
+        local t = tween(win, {Transparency = 1}, Theme.FadeTime, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+        t.Completed:Connect(function()
+            if not visible then
+                win.Visible = false
+            end
+        end)
+        t:Play()
     end
 end
 
 UIS.InputBegan:Connect(function(inp, processed)
     if not processed and inp.KeyCode==Enum.KeyCode.RightShift then
-        setVisible()
+        setVisibleState()
     end
 end)
-close.MouseButton1Click:Connect(function() setVisible(false) end)
+close.MouseButton1Click:Connect(function() setVisibleState(false) end)
 
-setVisible(true)
+setVisibleState(true)
