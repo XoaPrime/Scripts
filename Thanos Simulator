@@ -8,9 +8,16 @@ local player = Players.LocalPlayer
 local DEFAULT_DIST = 3
 local ENEMY_LIST = {
     "NPC", "NPC 2.0", "Templar",
+    "PowerNPC",
     "Servant Of Celestial [Lvl 1]",
     "Servant Of Celestial [Lvl 2]",
+    "Servant Of Celestial [Lvl 3]",
     "NPC [Erde]",
+    "Astra [Lvl 1]",
+    "Astra [Lvl 2]",
+    "Astra [Lvl 3]",
+    "Astra [Lvl 4]",
+    "Astra [Boss]"
 }
 local TELEPORT_MODES = {"Behind","Left","Right","In Front"}
 
@@ -57,7 +64,7 @@ win.Size = UDim2.new(0, WIN_W, 0, WIN_H)
 win.Position = UDim2.new(.5, -WIN_W/2, .5, -WIN_H/2)
 win.AnchorPoint = Vector2.new(.5,.5)
 win.BackgroundColor3 = Theme.Background
-win.BackgroundTransparency = Theme.InitialTransparency 
+win.BackgroundTransparency = Theme.InitialTransparency
 win.Active, win.Draggable = true, true
 Instance.new("UICorner", win).CornerRadius = Theme.CornerRadius
 win.Transparency = 1
@@ -138,7 +145,7 @@ end
 local function addHoverEffect(button, normalColor, hoverColor, textNormalColor, textHoverColor)
     textNormalColor = textNormalColor or button.TextColor3
     textHoverColor = textHoverColor or textNormalColor
-    
+
     local originalStrokeColor = button:FindFirstChildOfClass("UIStroke") and button:FindFirstChildOfClass("UIStroke").Color or Theme.BorderColor
     local hoverStrokeColor = Color3.fromRGB(
         math.min(255, originalStrokeColor.r * 255 + 20),
@@ -166,7 +173,7 @@ local section1Frame = Instance.new("Frame", body)
 section1Frame.Name = "AutoKillSection"
 section1Frame.LayoutOrder = 1
 section1Frame.BackgroundTransparency = 1
-section1Frame.Size = UDim2.new(1, 0, 0, 212) 
+section1Frame.Size = UDim2.new(1, 0, 0, 212)
 local section1Layout = Instance.new("UIListLayout", section1Frame)
 section1Layout.Padding = UDim.new(0, Theme.ItemSpacing)
 section1Layout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -197,9 +204,9 @@ nextEnemy.Size = UDim2.new(0,28,0,28)
 addHoverEffect(nextEnemy, Theme.ElementBackground, Theme.Accent, Theme.TextSecondary, Theme.TextPrimary)
 
 local labelEnemy = Instance.new("TextLabel", enemyRow)
-labelEnemy.Size = UDim2.new(0,70,1,0) 
+labelEnemy.Size = UDim2.new(0,70,1,0)
 styleTextLabel(labelEnemy, Theme.FontBody, 14, Theme.TextSecondary)
-labelEnemy.Text = " Enemy:" 
+labelEnemy.Text = " Enemy:"
 labelEnemy.TextXAlignment = Enum.TextXAlignment.Left
 
 local selText = Instance.new("TextLabel", enemyRow)
@@ -388,9 +395,9 @@ end)
 distBox.FocusLost:Connect(function(enterPressed)
     if not enterPressed then return end
     local v = tonumber(distBox.Text)
-    if v and v > 0 then 
-        distance = v 
-    else 
+    if v and v > 0 then
+        distance = v
+    else
         distBox.Text = tostring(distance)
     end
 end)
@@ -409,9 +416,9 @@ freezeToggle.MouseButton1Click:Connect(function()
     isFrozen = not isFrozen
     local char = player.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
-    local root = char and char:FindFirstChild("HumanoidRootPart") 
+    local root = char and char:FindFirstChild("HumanoidRootPart")
 
-    if hum and root then 
+    if hum and root then
         if isFrozen then
             freezeToggle.Text = "Freeze [ON]"
             tween(freezeToggle, {BackgroundColor3 = Theme.Success}, 0.1):Play()
@@ -434,33 +441,57 @@ freezeToggle.MouseButton1Click:Connect(function()
     end
 end)
 
+-- MODIFIED FUNCTION: pickNewTarget
 local function pickNewTarget()
-    local name = ENEMY_LIST[selEnemyIdx]
+    local selectedNameFromList = ENEMY_LIST[selEnemyIdx]
+    local lowerSelectedName = string.lower(selectedNameFromList)
     local pool = {}
-    if name == "Templar" then
-        for _,obj in ipairs(workspace:GetChildren()) do
-            if obj.Name == "Templar" then
+    local searchContainer = nil -- This will be the parent Instance to search within (e.g., workspace.Enemies)
+    local searchDirectlyInWorkspace = false -- Flag for specific NPCs directly under workspace
+
+    -- Determine the search location based on the selected NPC name
+    if lowerSelectedName == "astra [boss]" then
+        searchContainer = workspace:FindFirstChild("Enemies")
+    elseif selectedNameFromList == "Templar" or
+           selectedNameFromList == "Astra [Lvl 1]" or
+           selectedNameFromList == "Astra [Lvl 2]" or
+           selectedNameFromList == "Astra [Lvl 3]" or
+           selectedNameFromList == "Astra [Lvl 4]" then
+        searchDirectlyInWorkspace = true -- These are searched directly under workspace
+    elseif selectedNameFromList == "PowerNPC" then
+        searchContainer = workspace:FindFirstChild("PowerStoneTemple")
+    else
+        -- Default for all other NPCs, including "NPC", "NPC 2.0", etc.
+        searchContainer = workspace:FindFirstChild("Enemies")
+    end
+
+    -- Perform the search
+    if searchDirectlyInWorkspace then
+        -- Search directly under workspace
+        for _, obj in ipairs(workspace:GetChildren()) do
+            if string.lower(obj.Name) == lowerSelectedName then
                 local h = obj:FindFirstChildOfClass("Humanoid")
                 local r = obj:FindFirstChild("HumanoidRootPart")
                 if h and r and h.Health > 0 then table.insert(pool, {hum=h,hrp=r}) end
             end
         end
-    else
-        local folder = workspace:FindFirstChild("Enemies")
-        if folder then
-            for _,npc in ipairs(folder:GetChildren()) do
-                if npc.Name == name then
-                    local h = npc:FindFirstChildOfClass("Humanoid")
-                    local r = npc:FindFirstChild("HumanoidRootPart")
-                    if h and r and h.Health > 0 then table.insert(pool, {hum=h,hrp=r}) end
-                end
+    elseif searchContainer then
+        -- Search within the determined container (e.g., workspace.Enemies or workspace.PowerStoneTemple)
+        for _, obj in ipairs(searchContainer:GetChildren()) do
+            if string.lower(obj.Name) == lowerSelectedName then
+                local h = obj:FindFirstChildOfClass("Humanoid")
+                local r = obj:FindFirstChild("HumanoidRootPart")
+                if h and r and h.Health > 0 then table.insert(pool, {hum=h,hrp=r}) end
             end
         end
     end
+    -- If searchContainer was nil (e.g., "Enemies" folder doesn't exist), pool will remain empty.
+
     if #pool == 0 then return nil,nil end
     local pick = pool[math.random(#pool)]
     return pick.hrp, pick.hum
 end
+-- END OF MODIFIED FUNCTION
 
 local function computeOffset(hrp)
     local mode = TELEPORT_MODES[selModeIdx]
@@ -470,7 +501,7 @@ local function computeOffset(hrp)
         return hrp.CFrame.RightVector*distance + Vector3.new(0,0.5,0)
     elseif mode=="In Front" then
         return hrp.CFrame.LookVector*distance + Vector3.new(0,0.5,0)
-    else 
+    else
         return -hrp.CFrame.LookVector*distance + Vector3.new(0,0.5,0)
     end
 end
