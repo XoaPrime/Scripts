@@ -1,157 +1,237 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
+local Services = {
+    ReplicatedStorage = game:GetService("ReplicatedStorage"),
+    Players = game:GetService("Players"),
+    TweenService = game:GetService("TweenService"),
+    RunService = game:GetService("RunService")
+}
 
--- Arguments for events
-local eatArgs = {"eat"}
-local grabArgs = {"grab"}
+local Player = Services.Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
 
--- Flags to control loops
-local eatEnabled = false
-local grabEnabled = false
-local isMinimized = false -- Minimize state
+local Config = {
+    Name = "SigmaBoyGuiEnhanced",
+    Title = "SIGMA BOY GUI",
+    Font = Enum.Font.SciFi,
+    Colors = {
+        MainFrameBackground = Color3.fromRGB(35, 35, 35),
+        HeaderBackground = Color3.fromRGB(25, 25, 25),
+        Text = Color3.fromRGB(255, 255, 255),
+        
+        MinimizeButtonDefault = Color3.fromRGB(50, 50, 50),
+        
+        EatButtonOff = Color3.fromRGB(255, 50, 50),
+        EatButtonOn = Color3.fromRGB(50, 200, 50),
+        
+        GrabButtonOff = Color3.fromRGB(50, 100, 255),
+        GrabButtonOn = Color3.fromRGB(80, 220, 120),
+        
+        HoverLerpFactor = 0.2,
+    },
+    Sizes = {
+        MainFrame = UDim2.new(0, 350, 0, 250),
+        MainFrameMinimized = UDim2.new(0, 350, 0, 45),
+        Header = UDim2.new(1, 0, 0, 45),
+        MinimizeButton = UDim2.new(0, 40, 0, 40),
+        ActionButton = UDim2.new(0.8, 0, 0, 45),
+    },
+    Positions = {
+        MainFrame = UDim2.new(0.5, -175, 0.5, -125),
+        MinimizeButton = UDim2.new(1, -50, 0.5, -20),
+        EatButton = UDim2.new(0.1, 0, 0.4, 0),
+        GrabButton = UDim2.new(0.1, 0, 0.6, 0),
+    },
+    Text = {
+        SizeTitle = 22,
+        SizeButton = 20,
+        EatButton = { On = "AUTO EAT: ON", Off = "AUTO EAT: OFF" },
+        GrabButton = { On = "AUTO GRAB: ON", Off = "AUTO GRAB: OFF" },
+        MinimizeButton = { Minimized = "+", Maximized = "-" }
+    },
+    CornerRadiusValue = UDim.new(0, 12),
+    EventArguments = {
+        Eat = {"eat"},
+        Grab = {"grab"},
+    },
+    TweenSettings = {
+        Minimize = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        Hover = TweenInfo.new(0.1)
+    }
+}
 
--- Function to fire Eat event in a loop
-local function fireEatEvent()
-    while eatEnabled do
-        ReplicatedStorage.LocalEvents.Eat:Fire(unpack(eatArgs))
-        task.wait() -- Fastest possible speed
+local guiState = {
+    eatEnabled = false,
+    grabEnabled = false,
+    isMinimized = false
+}
+
+local RemoteEvents = {
+    Eat = Services.ReplicatedStorage:WaitForChild("LocalEvents"):WaitForChild("Eat"),
+    Grab = Services.ReplicatedStorage:WaitForChild("LocalEvents"):WaitForChild("Grab")
+}
+
+local UI = {}
+
+local function create(instanceType, properties)
+    local inst = Instance.new(instanceType)
+    for prop, value in pairs(properties or {}) do
+        inst[prop] = value
     end
+    return inst
 end
 
--- Function to fire Grab event in a loop
-local function fireGrabEvent()
-    while grabEnabled do
-        ReplicatedStorage.LocalEvents.Grab:Fire(unpack(grabArgs))
-        task.wait() -- Fastest possible speed
-    end
+local function addCorner(element, radius)
+    create("UICorner", {
+        CornerRadius = radius or Config.CornerRadiusValue,
+        Parent = element
+    })
 end
 
--- Create GUI elements
-local ScreenGui = Instance.new("ScreenGui")
-local MainFrame = Instance.new("Frame")
-local Header = Instance.new("Frame")
-local Title = Instance.new("TextLabel")
-local MinimizeButton = Instance.new("TextButton")
-local EatButton = Instance.new("TextButton")
-local GrabButton = Instance.new("TextButton")
+local function createEventFirer(event, args, isEnabledCheck)
+    task.spawn(function()
+        while isEnabledCheck() and task.wait() do
+            event:Fire(unpack(args))
+        end
+    end)
+end
 
--- ScreenGui
-ScreenGui.Name = "SigmaBoyGui"
-ScreenGui.Parent = player:WaitForChild("PlayerGui")
+local function setupGui()
+    UI.ScreenGui = create("ScreenGui", {
+        Name = Config.Name,
+        Parent = PlayerGui,
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+        ResetOnSpawn = false
+    })
 
--- MainFrame (Reduced Size)
-MainFrame.Parent = ScreenGui
-MainFrame.Size = UDim2.new(0, 350, 0, 250) -- Changed from 420x320 to 350x250
-MainFrame.Position = UDim2.new(0.5, -175, 0.5, -125)
-MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35) -- Darker background
-MainFrame.BorderSizePixel = 0
-MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-MainFrame.Active = true
-MainFrame.Draggable = true
+    UI.MainFrame = create("Frame", {
+        Parent = UI.ScreenGui,
+        Size = Config.Sizes.MainFrame,
+        Position = Config.Positions.MainFrame,
+        BackgroundColor3 = Config.Colors.MainFrameBackground,
+        BorderSizePixel = 0,
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Active = true,
+        Draggable = true
+    })
+    addCorner(UI.MainFrame)
 
--- Rounded corners for MainFrame
-local MainFrameCorner = Instance.new("UICorner")
-MainFrameCorner.CornerRadius = UDim.new(0, 12)
-MainFrameCorner.Parent = MainFrame
+    UI.Header = create("Frame", {
+        Parent = UI.MainFrame,
+        Size = Config.Sizes.Header,
+        BackgroundColor3 = Config.Colors.HeaderBackground,
+        BorderSizePixel = 0
+    })
+    addCorner(UI.Header)
 
--- Header (Title Bar)
-Header.Parent = MainFrame
-Header.Size = UDim2.new(1, 0, 0, 45) -- Reduced height from 55 to 45
-Header.BackgroundColor3 = Color3.fromRGB(25, 25, 25) -- Slightly darker
-Header.BorderSizePixel = 0
+    UI.Title = create("TextLabel", {
+        Parent = UI.Header,
+        Size = UDim2.new(1, -(Config.Sizes.MinimizeButton.X.Offset + 10), 1, 0),
+        Position = UDim2.new(0, 10, 0, 0),
+        BackgroundTransparency = 1,
+        Text = Config.Title,
+        TextColor3 = Config.Colors.Text,
+        Font = Config.Font,
+        TextSize = Config.Text.SizeTitle,
+        TextXAlignment = Enum.TextXAlignment.Left
+    })
 
--- Rounded corners for Header
-local HeaderCorner = Instance.new("UICorner")
-HeaderCorner.CornerRadius = UDim.new(0, 12)
-HeaderCorner.Parent = Header
+    UI.MinimizeButton = create("TextButton", {
+        Parent = UI.Header,
+        Size = Config.Sizes.MinimizeButton,
+        Position = Config.Positions.MinimizeButton,
+        BackgroundColor3 = Config.Colors.MinimizeButtonDefault,
+        Text = Config.Text.MinimizeButton.Maximized,
+        Font = Config.Font,
+        TextSize = Config.Text.SizeButton,
+        TextColor3 = Config.Colors.Text,
+        AutoButtonColor = false
+    })
+    addCorner(UI.MinimizeButton)
 
--- Title (Updated Style)
-Title.Parent = Header
-Title.Size = UDim2.new(1, -50, 1, 0)
-Title.Position = UDim2.new(0, 10, 0, 0)
-Title.BackgroundTransparency = 1
-Title.Text = "SIGMA BOY GUI"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255) -- White for contrast
-Title.Font = Enum.Font.SciFi -- New futuristic font
-Title.TextSize = 22 -- Reduced from 26 to 22
-Title.TextXAlignment = Enum.TextXAlignment.Left
-
--- Minimize Button (Smaller)
-MinimizeButton.Parent = Header
-MinimizeButton.Size = UDim2.new(0, 40, 0, 40) -- Reduced from 45x45 to 40x40
-MinimizeButton.Position = UDim2.new(1, -50, 0.5, -20)
-MinimizeButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50) -- Dark Gray
-MinimizeButton.Text = "-"
-MinimizeButton.Font = Enum.Font.SciFi -- New font
-MinimizeButton.TextSize = 20 -- Reduced from 22 to 20
-MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-
--- Rounded corners for Minimize Button
-local MinimizeCorner = Instance.new("UICorner")
-MinimizeCorner.CornerRadius = UDim.new(0, 12)
-MinimizeCorner.Parent = MinimizeButton
-
--- Eat Button (Reduced Size)
-EatButton.Parent = MainFrame
-EatButton.Size = UDim2.new(0.8, 0, 0, 45) -- Reduced from 55px to 45px
-EatButton.Position = UDim2.new(0.1, 0, 0.4, 0)
-EatButton.Text = "AUTO EAT: OFF"
-EatButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50) -- Vibrant Red
-EatButton.Font = Enum.Font.SciFi -- New futuristic font
-EatButton.TextSize = 20 -- Reduced from 22 to 20
-EatButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-
--- Rounded corners for Eat Button
-local EatButtonCorner = Instance.new("UICorner")
-EatButtonCorner.CornerRadius = UDim.new(0, 12)
-EatButtonCorner.Parent = EatButton
-
--- Grab Button (Reduced Size)
-GrabButton.Parent = MainFrame
-GrabButton.Size = UDim2.new(0.8, 0, 0, 45) -- Reduced from 55px to 45px
-GrabButton.Position = UDim2.new(0.1, 0, 0.6, 0)
-GrabButton.Text = "AUTO GRAB: OFF"
-GrabButton.BackgroundColor3 = Color3.fromRGB(50, 100, 255) -- Electric Blue
-GrabButton.Font = Enum.Font.SciFi -- New futuristic font
-GrabButton.TextSize = 20 -- Reduced from 22 to 20
-GrabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-
--- Rounded corners for Grab Button
-local GrabButtonCorner = Instance.new("UICorner")
-GrabButtonCorner.CornerRadius = UDim.new(0, 12)
-GrabButtonCorner.Parent = GrabButton
-
--- Minimize Button Functionality
-MinimizeButton.MouseButton1Click:Connect(function()
-    isMinimized = not isMinimized
-    if isMinimized then
-        EatButton.Visible = false
-        GrabButton.Visible = false
-        MainFrame.Size = UDim2.new(0, 350, 0, 45) -- Adjusted for smaller minimize mode
-        MinimizeButton.Text = "+"
-    else
-        EatButton.Visible = true
-        GrabButton.Visible = true
-        MainFrame.Size = UDim2.new(0, 350, 0, 250) -- Adjusted to new smaller size
-        MinimizeButton.Text = "-"
+    local function createActionButton(name, textKey, position, offColor)
+        local button = create("TextButton", {
+            Parent = UI.MainFrame,
+            Name = name,
+            Size = Config.Sizes.ActionButton,
+            Position = position,
+            Text = Config.Text[textKey].Off,
+            BackgroundColor3 = offColor,
+            Font = Config.Font,
+            TextSize = Config.Text.SizeButton,
+            TextColor3 = Config.Colors.Text,
+            AutoButtonColor = false
+        })
+        addCorner(button)
+        return button
     end
-end)
 
--- Eat Button Functionality
-EatButton.MouseButton1Click:Connect(function()
-    eatEnabled = not eatEnabled
-    EatButton.Text = eatEnabled and "AUTO EAT: ON" or "AUTO EAT: OFF"
-    if eatEnabled then
-        fireEatEvent()
-    end
-end)
+    UI.EatButton = createActionButton("EatButton", "EatButton", Config.Positions.EatButton, Config.Colors.EatButtonOff)
+    UI.GrabButton = createActionButton("GrabButton", "GrabButton", Config.Positions.GrabButton, Config.Colors.GrabButtonOff)
+end
 
--- Grab Button Functionality
-GrabButton.MouseButton1Click:Connect(function()
-    grabEnabled = not grabEnabled
-    GrabButton.Text = grabEnabled and "AUTO GRAB: ON" or "AUTO GRAB: OFF"
-    if grabEnabled then
-        fireGrabEvent()
+local function setupInteractions()
+    UI.MinimizeButton.MouseButton1Click:Connect(function()
+        guiState.isMinimized = not guiState.isMinimized
+        local targetSize = guiState.isMinimized and Config.Sizes.MainFrameMinimized or Config.Sizes.MainFrame
+        local tween = Services.TweenService:Create(UI.MainFrame, Config.TweenSettings.Minimize, {Size = targetSize})
+        tween:Play()
+
+        UI.EatButton.Visible = not guiState.isMinimized
+        UI.GrabButton.Visible = not guiState.isMinimized
+        UI.MinimizeButton.Text = guiState.isMinimized and Config.Text.MinimizeButton.Minimized or Config.Text.MinimizeButton.Maximized
+    end)
+
+    local function setupToggleButton(button, flagName, textKey, event, eventArgs, offColor, onColor)
+        button.MouseButton1Click:Connect(function()
+            guiState[flagName] = not guiState[flagName]
+            local isOn = guiState[flagName]
+            button.Text = isOn and Config.Text[textKey].On or Config.Text[textKey].Off
+            
+            local targetColor = isOn and onColor or offColor
+            Services.TweenService:Create(button, Config.TweenSettings.Hover, {BackgroundColor3 = targetColor}):Play()
+
+            if isOn then
+                createEventFirer(event, eventArgs, function() return guiState[flagName] end)
+            end
+        end)
     end
-end)
+
+    setupToggleButton(
+        UI.EatButton, "eatEnabled", "EatButton", RemoteEvents.Eat, Config.EventArguments.Eat,
+        Config.Colors.EatButtonOff, Config.Colors.EatButtonOn
+    )
+    setupToggleButton(
+        UI.GrabButton, "grabEnabled", "GrabButton", RemoteEvents.Grab, Config.EventArguments.Grab,
+        Config.Colors.GrabButtonOff, Config.Colors.GrabButtonOn
+    )
+
+    local function applyHoverEffect(button, baseColor)
+        local hoverColor = baseColor:Lerp(Color3.fromRGB(255,255,255), Config.Colors.HoverLerpFactor)
+        
+        button.MouseEnter:Connect(function()
+            if button.BackgroundColor3 == baseColor then
+                 Services.TweenService:Create(button, Config.TweenSettings.Hover, {BackgroundColor3 = hoverColor}):Play()
+            end
+        end)
+        button.MouseLeave:Connect(function()
+            if button.BackgroundColor3 == hoverColor then
+                Services.TweenService:Create(button, Config.TweenSettings.Hover, {BackgroundColor3 = baseColor}):Play()
+            end
+        end)
+    end
+
+    applyHoverEffect(UI.MinimizeButton, Config.Colors.MinimizeButtonDefault)
+    applyHoverEffect(UI.EatButton, Config.Colors.EatButtonOff)
+    applyHoverEffect(UI.GrabButton, Config.Colors.GrabButtonOff)
+end
+
+local function init()
+    local oldGui = PlayerGui:FindFirstChild(Config.Name)
+    if oldGui then
+        oldGui:Destroy()
+    end
+
+    setupGui()
+    setupInteractions()
+end
+
+init()
