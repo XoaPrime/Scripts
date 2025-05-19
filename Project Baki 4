@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -376,7 +377,7 @@ local function createBossButton(bossName)
                         else
                             autoBossToggles[bossName] = false
                         end
-                        task.wait(ATTACK_INTERVAL)
+                        RunService.Heartbeat:Wait()
                     end
                     autoBossLoopRunning[bossName] = false
                     if btn.Parent and not autoBossToggles[bossName] then
@@ -429,7 +430,7 @@ EveryBossButton.MouseButton1Click:Connect(function()
                              else
                                  autoBossToggles[bossName] = false
                              end
-                             task.wait(ATTACK_INTERVAL)
+                             RunService.Heartbeat:Wait()
                          end
                          autoBossLoopRunning[bossName] = false
                          if btnInstance.Parent and not autoBossToggles[bossName] then
@@ -498,7 +499,7 @@ if relicTeleportEnabled and not relicLoopRunning then relicLoopRunning=true;task
 if spawnedTrinkets then for _,relic in ipairs(spawnedTrinkets:GetChildren())do if relic:IsA("BasePart")and relic:FindFirstChildOfClass("TouchTransmitter")then currentRelicTarget=relic;break end end end
 if currentRelicTarget then local char=player.Character;if char then local hrp=char:FindFirstChild("HumanoidRootPart")
 if hrp then local oCFrame=hrp.CFrame;local tPos=currentRelicTarget.Position+Vector3.new(0,3.5,0);hrp.CFrame=CFrame.new(tPos);local sTime=tick()
-while currentRelicTarget and currentRelicTarget.Parent and(tick()-sTime<5)and relicTeleportEnabled do task.wait(0.1)end
+while currentRelicTarget and currentRelicTarget.Parent and(tick()-sTime<5)and relicTeleportEnabled do RunService.Heartbeat:Wait() end
 if relicTeleportEnabled and hrp.Parent then hrp.CFrame=oCFrame end;task.wait(0.5)end end else task.wait(1)end;if not relicTeleportEnabled then break end end;relicLoopRunning=false
 if relicToggle.Parent and not relicTeleportEnabled then relicToggle.Text="Enable Relics Teleport: OFF";tweenProperty(relicToggle,{BackgroundColor3=theme.Surface,TextColor3=theme.Text},TWEEN_FAST)end end)end end)
 
@@ -547,7 +548,8 @@ local function addPlayerButton(plrToAdd)
                 else
                     playerAutoKillToggles[plrToAdd.Name] = false
                 end
-                task.wait(ATTACK_INTERVAL)end;playerAutoKillLoopRunning[plrToAdd.Name]=false
+                RunService.Heartbeat:Wait()
+                end;playerAutoKillLoopRunning[plrToAdd.Name]=false
                 if btn.Parent and not playerAutoKillToggles[plrToAdd.Name]then btn.Text=plrToAdd.Name.." : OFF";tweenProperty(btn,{BackgroundColor3=theme.Surface,TextColor3=theme.TextSecondary},TWEEN_FAST)end end)end
         else
             btn.Text=plrToAdd.Name.." : OFF";tweenProperty(btn,{BackgroundColor3=theme.Surface,TextColor3=theme.TextSecondary},TWEEN_FAST)
@@ -584,7 +586,7 @@ EveryPlayerButton.MouseButton1Click:Connect(function()
                              else
                                 playerAutoKillToggles[playerName] = false
                              end
-                             task.wait(ATTACK_INTERVAL)
+                             RunService.Heartbeat:Wait()
                          end
                          playerAutoKillLoopRunning[playerName] = false
                          if btnInstance.Parent and not playerAutoKillToggles[playerName] then
@@ -600,7 +602,6 @@ EveryPlayerButton.MouseButton1Click:Connect(function()
         end
     end
 end)
-
 
 P_SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
     local query = P_SearchBar.Text:lower()
@@ -675,7 +676,6 @@ CloseButton.MouseButton1Click:Connect(function()
     local currentPosition = MainFrame.Position
     local newPosition = UDim2.new(currentPosition.X.Scale + 0.02, currentPosition.X.Offset + MainFrame.Size.X.Offset * 0.05,
                                    currentPosition.Y.Scale + 0.02, currentPosition.Y.Offset + MainFrame.Size.Y.Offset * 0.05)
-
 
     local tween = tweenProperty(MainFrame, {BackgroundTransparency = 1, Size = newSize, Position = newPosition }, TWEEN_EXIT, Enum.EasingStyle.Quad)
 
