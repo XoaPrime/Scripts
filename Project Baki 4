@@ -7,12 +7,9 @@ local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-
 local mt = getrawmetatable(game)
 setreadonly(mt, false)
-
 local oldNamecall = mt.__namecall
-
 mt.__namecall = function(self, ...)
     local method = getnamecallmethod()
     if method == "Kick" and tostring(self) == tostring(game.Players.LocalPlayer) then
@@ -20,7 +17,6 @@ mt.__namecall = function(self, ...)
     end
     return oldNamecall(self, ...)
 end
-
 
 local theme = {
     Background = Color3.fromRGB(30, 32, 38),
@@ -43,16 +39,17 @@ local FONT_REGULAR = Enum.Font.SourceSans
 local FONT_SEMIBOLD = Enum.Font.SourceSansSemibold
 local FONT_BOLD = Enum.Font.SourceSansBold
 
-local ATTACK_INTERVAL = 0.1
 local TWEEN_FAST = 0.15
 local TWEEN_NORMAL = 0.2
 local TWEEN_EXIT = 0.25
 local TWEEN_ENTRY = 0.35
 
 local CORNER_MAX = 12
-local CORNER_LARGE = 10
 local CORNER_MEDIUM = 8
 local CORNER_SMALL = 6
+
+local ATTACK_DELAY_BOSS = 0.1
+local ATTACK_DELAY_PLAYER = 0.1
 
 local function tweenProperty(object, propertyTable, time, easingStyle, easingDirection)
     local tweenInfo = TweenInfo.new(time, easingStyle or Enum.EasingStyle.Quad, easingDirection or Enum.EasingDirection.Out)
@@ -105,12 +102,28 @@ MainFrame.Parent = ScreenGui
 addCorner(MainFrame, CORNER_MAX)
 addStroke(MainFrame, theme.Stroke, 2)
 
+local MainFrameGradient = Instance.new("UIGradient")
+MainFrameGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(35, 37, 43)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 22, 28))
+})
+MainFrameGradient.Rotation = 90
+MainFrameGradient.Parent = MainFrame
+
 local TopBar = Instance.new("Frame")
 TopBar.Name = "TopBar"
 TopBar.Size = UDim2.new(1, 0, 0, 45)
 TopBar.BackgroundColor3 = theme.DarkerBackground
 TopBar.BorderSizePixel = 0
 TopBar.Parent = MainFrame
+
+local TopBarSeparator = Instance.new("Frame")
+TopBarSeparator.Name = "TopBarSeparator"
+TopBarSeparator.Size = UDim2.new(1, 0, 0, 2)
+TopBarSeparator.Position = UDim2.new(0, 0, 1, -2)
+TopBarSeparator.BackgroundColor3 = theme.Stroke
+TopBarSeparator.BorderSizePixel = 0
+TopBarSeparator.Parent = TopBar
 
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
@@ -136,12 +149,8 @@ CloseButton.TextColor3 = theme.TextSecondary
 CloseButton.BorderSizePixel = 0
 CloseButton.Parent = TopBar
 
-CloseButton.MouseEnter:Connect(function()
-    tweenProperty(CloseButton, {BackgroundColor3 = theme.Destructive, TextColor3 = theme.WhiteText}, TWEEN_FAST)
-end)
-CloseButton.MouseLeave:Connect(function()
-    tweenProperty(CloseButton, {BackgroundColor3 = theme.DarkerBackground, TextColor3 = theme.TextSecondary}, TWEEN_FAST)
-end)
+CloseButton.MouseEnter:Connect(function() tweenProperty(CloseButton, {BackgroundColor3 = theme.Destructive, TextColor3 = theme.WhiteText}, TWEEN_FAST) end)
+CloseButton.MouseLeave:Connect(function() tweenProperty(CloseButton, {BackgroundColor3 = theme.DarkerBackground, TextColor3 = theme.TextSecondary}, TWEEN_FAST) end)
 
 local Sidebar = Instance.new("Frame")
 Sidebar.Name = "Sidebar"
@@ -154,9 +163,6 @@ addPadding(Sidebar, 10, 10, 10, 10)
 
 local SidebarLayout = Instance.new("UIListLayout")
 SidebarLayout.Padding = UDim.new(0, 8)
-SidebarLayout.FillDirection = Enum.FillDirection.Vertical
-SidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder
-SidebarLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 SidebarLayout.Parent = Sidebar
 
 local ContentArea = Instance.new("Frame")
@@ -166,7 +172,6 @@ ContentArea.Position = UDim2.new(0, Sidebar.Size.X.Offset, 0, TopBar.Size.Y.Offs
 ContentArea.BackgroundColor3 = theme.Background
 ContentArea.BorderSizePixel = 0
 ContentArea.Parent = MainFrame
-addPadding(ContentArea, 15, 15, 15, 15)
 
 local function createTabButton(tabName)
     local btn = Instance.new("TextButton")
@@ -177,22 +182,25 @@ local function createTabButton(tabName)
     btn.Font = FONT_SEMIBOLD
     btn.TextSize = 16
     btn.Text = tabName
+    btn.TextXAlignment = Enum.TextXAlignment.Left
     btn.BorderSizePixel = 0
     btn.Parent = Sidebar
     addCorner(btn, CORNER_MEDIUM)
     addStroke(btn, theme.Stroke, 1)
-    btn:SetAttribute("IsSelected", false)
+    addPadding(btn, 0, 0, 15, 0)
 
-    btn.MouseEnter:Connect(function()
-        if not btn:GetAttribute("IsSelected") then
-            tweenProperty(btn, {BackgroundColor3 = theme.SurfaceHover, TextColor3 = theme.Text}, TWEEN_FAST)
-        end
-    end)
-    btn.MouseLeave:Connect(function()
-        if not btn:GetAttribute("IsSelected") then
-            tweenProperty(btn, {BackgroundColor3 = theme.Surface, TextColor3 = theme.TextSecondary}, TWEEN_FAST)
-        end
-    end)
+    local indicator = Instance.new("Frame")
+    indicator.Name = "SelectionIndicator"
+    indicator.Size = UDim2.new(1, 0, 0, 5)
+    indicator.Position = UDim2.new(0, 0, 1, -5)
+    indicator.BackgroundColor3 = theme.Accent
+    indicator.BackgroundTransparency = 1
+    indicator.ZIndex = 2
+    indicator.Parent = btn
+
+    btn:SetAttribute("IsSelected", false)
+    btn.MouseEnter:Connect(function() if not btn:GetAttribute("IsSelected") then tweenProperty(btn, {BackgroundColor3 = theme.SurfaceHover}, TWEEN_FAST) end end)
+    btn.MouseLeave:Connect(function() if not btn:GetAttribute("IsSelected") then tweenProperty(btn, {BackgroundColor3 = theme.Surface}, TWEEN_FAST) end end)
     return btn
 end
 
@@ -202,19 +210,19 @@ local relicsTabButton    = createTabButton("Relics")
 local playersTabButton   = createTabButton("Players")
 local teleportsTabButton = createTabButton("Teleports")
 
-local allTabButtons = {
-    autoKillTabButton, stylesTabButton, relicsTabButton,
-    playersTabButton, teleportsTabButton
-}
+local allTabButtons = {autoKillTabButton, stylesTabButton, relicsTabButton, playersTabButton, teleportsTabButton}
 
 local function highlightTab(selectedBtn)
     for _, btn in ipairs(allTabButtons) do
+        local indicator = btn:FindFirstChild("SelectionIndicator")
         if btn == selectedBtn then
             btn:SetAttribute("IsSelected", true)
-            tweenProperty(btn, {BackgroundColor3 = theme.Accent, TextColor3 = theme.WhiteText}, TWEEN_FAST)
+            tweenProperty(btn, {TextColor3 = theme.WhiteText}, TWEEN_FAST)
+            if indicator then tweenProperty(indicator, {BackgroundTransparency = 0.3}, TWEEN_FAST) end
         else
             btn:SetAttribute("IsSelected", false)
-            tweenProperty(btn, {BackgroundColor3 = theme.Surface, TextColor3 = theme.TextSecondary}, TWEEN_FAST)
+            tweenProperty(btn, {TextColor3 = theme.TextSecondary}, TWEEN_FAST)
+            if indicator then tweenProperty(indicator, {BackgroundTransparency = 1}, TWEEN_FAST) end
         end
     end
 end
@@ -224,17 +232,10 @@ local function createSectionFrame(sectionName)
     frame.Name = sectionName.."Frame"
     frame.Size = UDim2.new(1, 0, 1, 0)
     frame.BackgroundTransparency = 1
-    frame.BackgroundColor3 = theme.LighterBackground
+    frame.BackgroundColor3 = Color3.new(1,1,1)
     frame.BorderSizePixel = 0
     frame.Visible = false
     frame.Parent = ContentArea
-    addPadding(frame, 10, 10, 10, 10)
-
-    local listLayout = Instance.new("UIListLayout")
-    listLayout.FillDirection = Enum.FillDirection.Vertical
-    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    listLayout.Padding = UDim.new(0, 10)
-    listLayout.Parent = frame
     return frame
 end
 
@@ -244,17 +245,13 @@ local relicsFrame    = createSectionFrame("Relics")
 local playersFrame   = createSectionFrame("Players")
 local teleportsFrame = createSectionFrame("Teleports")
 
-local allSectionFrames = {
-    autoKillFrame, stylesFrame, relicsFrame,
-    playersFrame, teleportsFrame
-}
+local allSectionFrames = {autoKillFrame, stylesFrame, relicsFrame, playersFrame, teleportsFrame}
 
 local function showSectionFrame(selectedFrameToShow)
     for _, frame in ipairs(allSectionFrames) do
         if frame == selectedFrameToShow then
             frame.Visible = true
-            frame.BackgroundTransparency = 1
-            tweenProperty(frame, {BackgroundTransparency = 0}, TWEEN_NORMAL)
+            tweenProperty(frame, {BackgroundTransparency = 1}, TWEEN_NORMAL)
         else
             if frame.Visible then
                  tweenProperty(frame, {BackgroundTransparency = 1}, TWEEN_FAST).Completed:Connect(function()
@@ -267,458 +264,288 @@ local function showSectionFrame(selectedFrameToShow)
     end
 end
 
-local autoKillTitle = Instance.new("TextLabel")
-autoKillTitle.Name = "SectionTitle"
-autoKillTitle.Size = UDim2.new(1, 0, 0, 30)
-autoKillTitle.BackgroundTransparency = 1
-autoKillTitle.Text = "Auto Kill Bosses"
-autoKillTitle.Font = FONT_BOLD
-autoKillTitle.TextSize = 20
-autoKillTitle.TextColor3 = theme.Text
-autoKillTitle.TextXAlignment = Enum.TextXAlignment.Left
-autoKillTitle.LayoutOrder = 1
-autoKillTitle.Parent = autoKillFrame
+local function createSlider(parent, label, minVal, maxVal, defaultVal, callback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, 0, 0, 28)
+    container.BackgroundTransparency = 1
+    container.Parent = parent
 
-local AK_SearchBar = Instance.new("TextBox")
-AK_SearchBar.Name = "AK_SearchBar"
-AK_SearchBar.Size = UDim2.new(1, 0, 0, 35)
-AK_SearchBar.PlaceholderText = "Search Bosses..."
-AK_SearchBar.PlaceholderColor3 = theme.TextSecondary
-AK_SearchBar.Text = ""
-AK_SearchBar.Font = FONT_REGULAR
-AK_SearchBar.TextSize = 16
-AK_SearchBar.TextColor3 = theme.Text
-AK_SearchBar.BackgroundColor3 = theme.Surface
-AK_SearchBar.ClearTextOnFocus = false
-AK_SearchBar.BorderSizePixel = 0
-AK_SearchBar.LayoutOrder = 2
-AK_SearchBar.Parent = autoKillFrame
-addCorner(AK_SearchBar, CORNER_SMALL)
-addStroke(AK_SearchBar, theme.Stroke, 1)
+    local title = Instance.new("TextLabel"); title.Size = UDim2.new(0.3, 0, 1, 0); title.BackgroundTransparency = 1; title.Font = FONT_REGULAR; title.Text = label; title.TextColor3 = theme.TextSecondary; title.TextXAlignment = Enum.TextXAlignment.Left; title.TextSize = 14; title.Parent = container
+    local sliderBack = Instance.new("Frame"); sliderBack.Size = UDim2.new(0.7, -10, 0, 8); sliderBack.Position = UDim2.new(0.3, 0, 0.5, -4); sliderBack.BackgroundColor3 = theme.DarkerBackground; sliderBack.BorderSizePixel = 0; sliderBack.Parent = container
+    addCorner(sliderBack, 4)
+    local sliderFill = Instance.new("Frame"); sliderFill.Size = UDim2.new(0, 0, 1, 0); sliderFill.BackgroundColor3 = theme.Accent; sliderFill.BorderSizePixel = 0; sliderFill.Parent = sliderBack
+    addCorner(sliderFill, 4)
+    local handle = Instance.new("TextButton"); handle.Size = UDim2.new(0, 16, 0, 16); handle.AnchorPoint = Vector2.new(0.5, 0.5); handle.Position = UDim2.new(0, 0, 0.5, 0); handle.BackgroundColor3 = theme.AccentHover; handle.BorderSizePixel = 0; handle.Text = ""; handle.Draggable = true; handle.Parent = sliderBack
+    addCorner(handle, 8); addStroke(handle, theme.Stroke, 1)
+    local valueLabel = Instance.new("TextLabel"); valueLabel.Size = UDim2.new(0, 40, 1, 0); valueLabel.Position = UDim2.new(1, -35, 0, 0); valueLabel.BackgroundTransparency = 1; valueLabel.Font = FONT_SEMIBOLD; valueLabel.TextColor3 = theme.Text; valueLabel.TextSize = 14; valueLabel.TextXAlignment = Enum.TextXAlignment.Right; valueLabel.Parent = container
 
-local EveryBossButton = Instance.new("TextButton")
-EveryBossButton.Name = "EveryBossButton"
-EveryBossButton.Text = "Toggle All Bosses: OFF"
-EveryBossButton.Font = FONT_SEMIBOLD
-EveryBossButton.TextSize = 16
-EveryBossButton.TextColor3 = theme.Text
-EveryBossButton.BackgroundColor3 = theme.Surface
-EveryBossButton.Size = UDim2.new(1, 0, 0, 35)
-EveryBossButton.BorderSizePixel = 0
-EveryBossButton.LayoutOrder = 3
-EveryBossButton.Parent = autoKillFrame
-addCorner(EveryBossButton, CORNER_SMALL)
-addStroke(EveryBossButton, theme.Stroke, 1)
-
-local BossScroll = Instance.new("ScrollingFrame")
-BossScroll.Name = "BossScroll"
-BossScroll.Size = UDim2.new(1, 0, 1, 0)
-BossScroll.BackgroundTransparency = 0.7
-BossScroll.BackgroundColor3 = theme.LighterBackground
-BossScroll.BorderSizePixel = 0
-BossScroll.ScrollBarThickness = 8
-BossScroll.ScrollBarImageColor3 = theme.ScrollBar
-BossScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-BossScroll.LayoutOrder = 4
-BossScroll.Parent = autoKillFrame
-addCorner(BossScroll, CORNER_MEDIUM)
-addStroke(BossScroll, theme.Stroke, 1)
-addPadding(BossScroll, 5,5,5,5)
-
-local BossUIList = Instance.new("UIListLayout")
-BossUIList.Padding = UDim.new(0, 6)
-BossUIList.FillDirection = Enum.FillDirection.Vertical
-BossUIList.SortOrder = Enum.SortOrder.LayoutOrder
-BossUIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-BossUIList.Parent = BossScroll
-BossUIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    BossScroll.CanvasSize = UDim2.new(0, 0, 0, BossUIList.AbsoluteContentSize.Y)
-end)
-
-local autoBossNames = {
-    "Kiyosumi Kato", "Retsu", "Dorian", "Sikorsky", "Spec", "Doyle",
-    "Yanagi", "Yasha Ape Jr.", "Raian", "KiryuKazuma", "Pickle",
-    "Musashi", "Predator", "Armstrong", "Jason Voorhees",
-    "Goro Majima, Mad Dog of Shimano", "Jetstream Sam", "Headless One",
-    "Slayer", "Sukune", "Leatherface", "The Protagonist", "Yasha Ape",
-    "AdamSmasher","Yasha Ape St.","Katsumi","Yujiro","Hanayama","Doppo Orochi", "Chiharu"
-}
-local autoBossToggles = {}
-local autoBossLoopRunning = {}
-local autoBossButtons = {}
-local allBossesOn = false
-
-for _, boss in ipairs(autoBossNames) do
-    autoBossToggles[boss] = false
-    autoBossLoopRunning[boss] = false
+    local function updateSlider(inputPos)
+        if not sliderBack or not sliderBack.Parent then return end
+        local relativePos = sliderBack.AbsolutePosition; local relativeSize = sliderBack.AbsoluteSize
+        if relativeSize.X == 0 then return end
+        local x = math.clamp(inputPos.X - relativePos.X, 0, relativeSize.X)
+        local percentage = x / relativeSize.X
+        
+        local value = minVal + (maxVal - minVal) * percentage
+        callback(value)
+        
+        handle.Position = UDim2.fromScale(percentage, 0.5)
+        sliderFill.Size = UDim2.fromScale(percentage, 1)
+        valueLabel.Text = string.format("%.2f", value)
+    end
+    
+    local function setDefault()
+        local percentage = (defaultVal - minVal) / (maxVal - minVal)
+        handle.Position = UDim2.fromScale(percentage, 0.5)
+        sliderFill.Size = UDim2.fromScale(percentage, 1)
+        valueLabel.Text = string.format("%.2f", defaultVal)
+        callback(defaultVal)
+    end
+    
+    local dragConnection
+    handle.DragBegin:Connect(function()
+        tweenProperty(handle, {Size = UDim2.new(0, 20, 0, 20)}, TWEEN_FAST)
+        if dragConnection then dragConnection:Disconnect() end
+        dragConnection = RunService.RenderStepped:Connect(function()
+            updateSlider(UserInputService:GetMouseLocation())
+        end)
+    end)
+    handle.DragStopped:Connect(function()
+        tweenProperty(handle, {Size = UDim2.new(0, 16, 0, 16)}, TWEEN_FAST)
+        if dragConnection then
+            dragConnection:Disconnect()
+            dragConnection = nil
+        end
+    end)
+    
+    task.wait()
+    setDefault()
 end
 
+local PADDING = 10
+local TITLE_HEIGHT = 30
+local CONTROLS_HEIGHT = 75
+local SLIDER_CONTROLS_HEIGHT = 38
+local SEARCH_CONTROLS_HEIGHT = 45
+
+local ak_y = PADDING
+local autoKillTitle = Instance.new("TextLabel"); autoKillTitle.Name = "SectionTitle"; autoKillTitle.Size = UDim2.new(1, -PADDING*2, 0, TITLE_HEIGHT); autoKillTitle.Position = UDim2.new(0, PADDING, 0, ak_y); autoKillTitle.BackgroundTransparency = 1; autoKillTitle.Text = "Auto Kill Bosses"; autoKillTitle.Font = FONT_BOLD; autoKillTitle.TextSize = 20; autoKillTitle.TextColor3 = theme.Text; autoKillTitle.TextXAlignment = Enum.TextXAlignment.Left; autoKillTitle.Parent = autoKillFrame
+ak_y = ak_y + TITLE_HEIGHT + PADDING
+
+local AK_ControlsContainer = Instance.new("Frame"); AK_ControlsContainer.Name = "AK_ControlsContainer"; AK_ControlsContainer.Size = UDim2.new(1, -PADDING*2, 0, CONTROLS_HEIGHT); AK_ControlsContainer.Position = UDim2.new(0, PADDING, 0, ak_y); AK_ControlsContainer.BackgroundColor3 = theme.DarkerBackground; AK_ControlsContainer.Parent = autoKillFrame
+addCorner(AK_ControlsContainer, CORNER_MEDIUM); addStroke(AK_ControlsContainer, theme.Stroke, 1); addPadding(AK_ControlsContainer, 8, 8, 8, 8)
+local AK_ControlsLayout = Instance.new("UIListLayout"); AK_ControlsLayout.Padding = UDim.new(0, 8); AK_ControlsLayout.Parent = AK_ControlsContainer
+local AK_SearchBar = Instance.new("TextBox"); AK_SearchBar.Name = "AK_SearchBar"; AK_SearchBar.Size = UDim2.new(1, 0, 0, 28); AK_SearchBar.PlaceholderText = "Search Bosses..."; AK_SearchBar.Text = ""; AK_SearchBar.Font = FONT_REGULAR; AK_SearchBar.TextSize = 16; AK_SearchBar.TextColor3 = theme.Text; AK_SearchBar.BackgroundColor3 = theme.Surface; AK_SearchBar.Parent = AK_ControlsContainer
+addCorner(AK_SearchBar, CORNER_SMALL); addStroke(AK_SearchBar, theme.Stroke, 1)
+local EveryBossButton = Instance.new("TextButton"); EveryBossButton.Name = "EveryBossButton"; EveryBossButton.Text = "Toggle All Bosses: OFF"; EveryBossButton.Font = FONT_SEMIBOLD; EveryBossButton.TextSize = 16; EveryBossButton.TextColor3 = theme.Text; EveryBossButton.BackgroundColor3 = theme.Surface; EveryBossButton.Size = UDim2.new(1, 0, 0, 28); EveryBossButton.Parent = AK_ControlsContainer
+addCorner(EveryBossButton, CORNER_SMALL); addStroke(EveryBossButton, theme.Stroke, 1)
+ak_y = ak_y + CONTROLS_HEIGHT + PADDING
+
+local AK_SliderContainer = Instance.new("Frame"); AK_SliderContainer.Name = "AK_SliderContainer"; AK_SliderContainer.Size = UDim2.new(1, -PADDING*2, 0, SLIDER_CONTROLS_HEIGHT); AK_SliderContainer.Position = UDim2.new(0, PADDING, 0, ak_y); AK_SliderContainer.BackgroundColor3 = theme.DarkerBackground; AK_SliderContainer.Parent = autoKillFrame
+addCorner(AK_SliderContainer, CORNER_MEDIUM); addStroke(AK_SliderContainer, theme.Stroke, 1); addPadding(AK_SliderContainer, 5, 5, 5, 5)
+createSlider(AK_SliderContainer, "Speed (s)", 0.05, 1, ATTACK_DELAY_BOSS, function(val) ATTACK_DELAY_BOSS = val end)
+ak_y = ak_y + SLIDER_CONTROLS_HEIGHT + PADDING
+
+local BossScroll = Instance.new("ScrollingFrame"); BossScroll.Name = "BossScroll"; BossScroll.Position = UDim2.new(0, PADDING, 0, ak_y); BossScroll.Size = UDim2.new(1, -PADDING*2, 1, -ak_y - PADDING); BossScroll.BackgroundColor3 = theme.Surface; BossScroll.ScrollBarThickness = 8; BossScroll.ScrollBarImageColor3 = theme.ScrollBar; BossScroll.Parent = autoKillFrame
+addCorner(BossScroll, CORNER_MEDIUM); addStroke(BossScroll, theme.Stroke, 1); addPadding(BossScroll, 5, 5, 5, 5)
+local BossUIList = Instance.new("UIListLayout"); BossUIList.Padding = UDim.new(0, 5); BossUIList.Parent = BossScroll
+BossUIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() BossScroll.CanvasSize = UDim2.fromOffset(0, BossUIList.AbsoluteContentSize.Y) end)
+local autoBossNames = {"Kiyosumi Kato", "Retsu", "Dorian", "Sikorsky", "Spec", "Doyle", "Yanagi", "Yasha Ape Jr.", "Raian", "KiryuKazuma", "Pickle", "Musashi", "Predator", "Armstrong", "Jason Voorhees", "Goro Majima, Mad Dog of Shimano", "Jetstream Sam", "Headless One", "Slayer", "Sukune", "Leatherface", "The Protagonist", "Yasha Ape", "AdamSmasher", "Yasha Ape St.", "Katsumi", "Yujiro", "Hanayama", "Doppo Orochi", "Chiharu"}
+local autoBossToggles = {}; local autoBossLoopRunning = {}; local autoBossButtons = {}; local allBossesOn = false
+for _, boss in ipairs(autoBossNames) do autoBossToggles[boss] = false; autoBossLoopRunning[boss] = false end
+
 local function createBossButton(bossName)
-    local btn = Instance.new("TextButton")
-    btn.Name = "BossBtn_"..bossName
-    btn.Size = UDim2.new(1, 0, 0, 30)
-    btn.BackgroundColor3 = theme.Surface
-    btn.TextColor3 = theme.TextSecondary
-    btn.Font = FONT_REGULAR
-    btn.TextSize = 16
-    btn.Text = bossName.." : OFF"
-    btn.Parent = BossScroll
-    addCorner(btn, CORNER_SMALL)
-    addStroke(btn, theme.Stroke, 1)
-
-    btn.MouseEnter:Connect(function()
-        if not autoBossToggles[bossName] then
-            tweenProperty(btn, {BackgroundColor3 = theme.SurfaceHover, TextColor3 = theme.Text}, TWEEN_FAST)
-        end
-    end)
-    btn.MouseLeave:Connect(function()
-        if not autoBossToggles[bossName] then
-            tweenProperty(btn, {BackgroundColor3 = theme.Surface, TextColor3 = theme.TextSecondary}, TWEEN_FAST)
-        end
-    end)
-
+    local btn = Instance.new("TextButton"); btn.Name = "BossBtn_"..bossName; btn.Size = UDim2.new(1, 0, 0, 28); btn.BackgroundColor3 = theme.Surface; btn.TextColor3 = theme.TextSecondary; btn.Font = FONT_REGULAR; btn.TextSize = 14; btn.Text = bossName.." : OFF"; btn.Parent = BossScroll
+    addCorner(btn, CORNER_SMALL); addStroke(btn, theme.Stroke, 1)
+    btn.MouseEnter:Connect(function() if not autoBossToggles[bossName] then tweenProperty(btn, {BackgroundColor3 = theme.SurfaceHover}, TWEEN_FAST) end end)
+    btn.MouseLeave:Connect(function() if not autoBossToggles[bossName] then tweenProperty(btn, {BackgroundColor3 = theme.Surface}, TWEEN_FAST) end end)
     btn.MouseButton1Click:Connect(function()
         autoBossToggles[bossName] = not autoBossToggles[bossName]
         if autoBossToggles[bossName] then
-            btn.Text = bossName.." : ON"
-            tweenProperty(btn, {BackgroundColor3 = theme.AccentActive, TextColor3 = theme.WhiteText}, TWEEN_FAST)
+            btn.Text = bossName.." : ON"; tweenProperty(btn, {BackgroundColor3 = theme.AccentActive, TextColor3 = theme.WhiteText}, TWEEN_FAST)
             if not autoBossLoopRunning[bossName] then
                 autoBossLoopRunning[bossName] = true
                 task.spawn(function()
                     while autoBossToggles[bossName] and btn.Parent do
                         local pObj = workspace.Game.Players:FindFirstChild(bossName)
                         if pObj and pObj:FindFirstChild("Humanoid") and pObj.Humanoid.Health > 0 then
-                            ReplicatedStorage.Remotes.ClientToServer.BasicCombat:FireServer("Skill", pObj.Humanoid)
-                        else
-                            autoBossToggles[bossName] = false
-                        end
-                        RunService.Heartbeat:Wait()
+                            local args = {"Light Punche", 1, pObj.Humanoid, [6] = false, [7] = false}
+                            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("ClientToServer"):WaitForChild("BasicCombat"):FireServer(unpack(args))
+                        else autoBossToggles[bossName] = false end
+                        task.wait(ATTACK_DELAY_BOSS)
                     end
                     autoBossLoopRunning[bossName] = false
-                    if btn.Parent and not autoBossToggles[bossName] then
-                        btn.Text = bossName.." : OFF"
-                        tweenProperty(btn, {BackgroundColor3 = theme.Surface, TextColor3 = theme.TextSecondary}, TWEEN_FAST)
-                    end
+                    if btn.Parent and not autoBossToggles[bossName] then btn.Text = bossName.." : OFF"; tweenProperty(btn, {BackgroundColor3 = theme.Surface, TextColor3 = theme.TextSecondary}, TWEEN_FAST) end
                 end)
             end
-        else
-            btn.Text = bossName.." : OFF"
-            tweenProperty(btn, {BackgroundColor3 = theme.Surface, TextColor3 = theme.TextSecondary}, TWEEN_FAST)
-        end
+        else btn.Text = bossName.." : OFF"; tweenProperty(btn, {BackgroundColor3 = theme.Surface, TextColor3 = theme.TextSecondary}, TWEEN_FAST) end
     end)
     autoBossButtons[bossName] = btn
 end
-
-for _, boss in ipairs(autoBossNames) do
-    createBossButton(boss)
-end
-
-task.defer(function()
-    if BossUIList.Parent then
-        BossUIList:ApplyLayout()
-    end
-end)
-
-EveryBossButton.MouseEnter:Connect(function() tweenProperty(EveryBossButton, {BackgroundColor3 = allBossesOn and theme.AccentHover or theme.SurfaceHover}, TWEEN_FAST) end)
-EveryBossButton.MouseLeave:Connect(function() tweenProperty(EveryBossButton, {BackgroundColor3 = allBossesOn and theme.AccentActive or theme.Surface}, TWEEN_FAST) end)
+for _, boss in ipairs(autoBossNames) do createBossButton(boss) end
+task.defer(function() if BossUIList and BossUIList.Parent then BossUIList:ApplyLayout() end end)
 EveryBossButton.MouseButton1Click:Connect(function()
     allBossesOn = not allBossesOn
     EveryBossButton.Text = allBossesOn and "Toggle All Bosses: ON" or "Toggle All Bosses: OFF"
-    local targetColor = allBossesOn and theme.AccentActive or theme.Surface
-    local textColor = allBossesOn and theme.WhiteText or theme.Text
+    local targetColor = allBossesOn and theme.AccentActive or theme.Surface; local textColor = allBossesOn and theme.WhiteText or theme.Text
     tweenProperty(EveryBossButton, {BackgroundColor3 = targetColor, TextColor3 = textColor}, TWEEN_FAST)
-
     for bossName, btnInstance in pairs(autoBossButtons) do
-        if btnInstance and btnInstance.Parent and autoBossToggles[bossName] ~= allBossesOn then
-             autoBossToggles[bossName] = allBossesOn
-
-             if allBossesOn then
-                 btnInstance.Text = bossName.." : ON"
-                 tweenProperty(btnInstance, {BackgroundColor3 = theme.AccentActive, TextColor3 = theme.WhiteText}, TWEEN_FAST)
-                 if not autoBossLoopRunning[bossName] then
-                     autoBossLoopRunning[bossName] = true
-                     task.spawn(function()
-                         while autoBossToggles[bossName] and btnInstance.Parent do
-                             local pObj = workspace.Game.Players:FindFirstChild(bossName)
-                             if pObj and pObj:FindFirstChild("Humanoid") and pObj.Humanoid.Health > 0 then
-                                 ReplicatedStorage.Remotes.ClientToServer.BasicCombat:FireServer("Skill", pObj.Humanoid)
-                             else
-                                 autoBossToggles[bossName] = false
-                             end
-                             RunService.Heartbeat:Wait()
-                         end
-                         autoBossLoopRunning[bossName] = false
-                         if btnInstance.Parent and not autoBossToggles[bossName] then
-                             btnInstance.Text = bossName.." : OFF"
-                             tweenProperty(btnInstance, {BackgroundColor3 = theme.Surface, TextColor3 = theme.TextSecondary}, TWEEN_FAST)
-                         end
-                     end)
-                 end
-             else
-                 btnInstance.Text = bossName.." : OFF"
-                 tweenProperty(btnInstance, {BackgroundColor3 = theme.Surface, TextColor3 = theme.TextSecondary}, TWEEN_FAST)
-             end
-        end
+        if btnInstance and btnInstance.Parent and autoBossToggles[bossName] ~= allBossesOn then btnInstance.MouseButton1Click:Fire() end
     end
 end)
-
 AK_SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
     local query = AK_SearchBar.Text:lower()
-    local anyVisible = false
-    for _, child in ipairs(BossScroll:GetChildren()) do
-        if child:IsA("TextButton") and child.Name:match("^BossBtn_") then
-            local bName = child.Name:sub(9):lower()
-            local isVisible = (query == "" or bName:find(query))
-            child.Visible = isVisible
-            if isVisible then anyVisible = true end
-        end
-    end
+    for _, child in ipairs(BossScroll:GetChildren()) do if child:IsA("TextButton") and child.Name:match("^BossBtn_") then local bName = child.Name:sub(9):lower(); child.Visible = (query == "" or bName:find(query)) end end
     BossUIList:ApplyLayout()
 end)
 
-local stylesTitle = Instance.new("TextLabel"); stylesTitle.Name = "SectionTitle"; stylesTitle.Size = UDim2.new(1,0,0,30); stylesTitle.BackgroundTransparency=1; stylesTitle.Text="Combat Styles"; stylesTitle.Font=FONT_BOLD; stylesTitle.TextSize=20; stylesTitle.TextColor3=theme.Text; stylesTitle.TextXAlignment=Enum.TextXAlignment.Left; stylesTitle.LayoutOrder=1; stylesTitle.Parent=stylesFrame
-local StyleSearchBar = Instance.new("TextBox")
-StyleSearchBar.Name = "StyleSearchBar"; StyleSearchBar.Size = UDim2.new(1,0,0,35); StyleSearchBar.PlaceholderText="Search Trainers..."; StyleSearchBar.PlaceholderColor3=theme.TextSecondary; StyleSearchBar.Text=""; StyleSearchBar.Font=FONT_REGULAR; StyleSearchBar.TextSize=16; StyleSearchBar.TextColor3=theme.Text; StyleSearchBar.BackgroundColor3=theme.Surface; StyleSearchBar.ClearTextOnFocus=false; StyleSearchBar.LayoutOrder=2; StyleSearchBar.Parent=stylesFrame
-addCorner(StyleSearchBar, CORNER_SMALL); addStroke(StyleSearchBar, theme.Stroke, 1)
-local TrainerScroll = Instance.new("ScrollingFrame")
-TrainerScroll.Name="TrainerScroll"; TrainerScroll.Size=UDim2.new(1,0,1,0); TrainerScroll.BackgroundTransparency=0.7; TrainerScroll.BackgroundColor3=theme.LighterBackground; TrainerScroll.ScrollBarThickness=8; TrainerScroll.ScrollBarImageColor3=theme.ScrollBar; TrainerScroll.CanvasSize = UDim2.new(0,0,0,0); TrainerScroll.LayoutOrder=3; TrainerScroll.Parent=stylesFrame
-addCorner(TrainerScroll, CORNER_MEDIUM); addStroke(TrainerScroll, theme.Stroke, 1); addPadding(TrainerScroll,5,5,5,5)
-local TrainerUIList = Instance.new("UIListLayout")
-TrainerUIList.Padding = UDim.new(0,6); TrainerUIList.Parent = TrainerScroll
-TrainerUIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() TrainerScroll.CanvasSize = UDim2.new(0,0,0,TrainerUIList.AbsoluteContentSize.Y) end)
-
-local function equipStyle(trainerName)
-    local questRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("ClientToServer"):WaitForChild("Quest")
-    questRemote:InvokeServer(trainerName)
-end
-local function createTrainerButton(trainerName)
-    local tBtn=Instance.new("TextButton"); tBtn.Name="TrainerBtn"..trainerName; tBtn.Text=trainerName; tBtn.Font=FONT_SEMIBOLD; tBtn.TextSize=16; tBtn.TextColor3=theme.WhiteText; tBtn.BackgroundColor3=theme.Accent; tBtn.Size=UDim2.new(1,0,0,30); tBtn.Parent=TrainerScroll
-    addCorner(tBtn,CORNER_SMALL); addStroke(tBtn,theme.Stroke,1)
-    tBtn.MouseEnter:Connect(function()tweenProperty(tBtn,{BackgroundColor3=theme.AccentHover},TWEEN_FAST)end)
-    tBtn.MouseLeave:Connect(function()tweenProperty(tBtn,{BackgroundColor3=theme.Accent},TWEEN_FAST)end)
-    tBtn.MouseButton1Click:Connect(function()equipStyle(trainerName);local oC=tBtn.BackgroundColor3;tweenProperty(tBtn,{BackgroundColor3=theme.AccentActive},TWEEN_FAST);task.wait(TWEEN_NORMAL);tweenProperty(tBtn,{BackgroundColor3=oC},TWEEN_FAST)end)
-end
-local trainersFolder = workspace.Game:FindFirstChild("Trainers")
-if trainersFolder then for _,trainer in ipairs(trainersFolder:GetChildren())do if trainer:IsA("Model")or trainer:IsA("Folder")then createTrainerButton(trainer.Name)end end end
-task.defer(function() if TrainerUIList.Parent then TrainerUIList:ApplyLayout() end end)
-StyleSearchBar:GetPropertyChangedSignal("Text"):Connect(function()local q=StyleSearchBar.Text:lower();for _,c in ipairs(TrainerScroll:GetChildren())do if c:IsA("TextButton")and c.Name:match("^TrainerBtn")then local n=c.Name:sub(11):lower();c.Visible=(q==""or n:find(q))end end;TrainerUIList:ApplyLayout()end)
-
-local relicsTitle=Instance.new("TextLabel");relicsTitle.Name="SectionTitle";relicsTitle.Size=UDim2.new(1,0,0,30);relicsTitle.BackgroundTransparency=1;relicsTitle.Text="Auto Collect Relics";relicsTitle.Font=FONT_BOLD;relicsTitle.TextSize=20;relicsTitle.TextColor3=theme.Text;relicsTitle.TextXAlignment=Enum.TextXAlignment.Left;relicsTitle.LayoutOrder=1;relicsTitle.Parent=relicsFrame
-local relicToggle=Instance.new("TextButton");relicToggle.Name="RelicsToggle";relicToggle.Size=UDim2.new(1,0,0,35);relicToggle.BackgroundColor3=theme.Surface;relicToggle.TextColor3=theme.Text;relicToggle.Font=FONT_SEMIBOLD;relicToggle.TextSize=16;relicToggle.Text="Enable Relics Teleport: OFF";relicToggle.LayoutOrder=2;relicToggle.Parent=relicsFrame
-addCorner(relicToggle,CORNER_SMALL);addStroke(relicToggle,theme.Stroke,1)
-local relicTeleportEnabled=false;local relicLoopRunning=false
-relicToggle.MouseEnter:Connect(function()tweenProperty(relicToggle,{BackgroundColor3=relicTeleportEnabled and theme.AccentHover or theme.SurfaceHover},TWEEN_FAST)end)
-relicToggle.MouseLeave:Connect(function()tweenProperty(relicToggle,{BackgroundColor3=relicTeleportEnabled and theme.AccentActive or theme.Surface},TWEEN_FAST)end)
-relicToggle.MouseButton1Click:Connect(function()relicTeleportEnabled=not relicTeleportEnabled;relicToggle.Text=relicTeleportEnabled and"Enable Relics Teleport: ON"or"Enable Relics Teleport: OFF";local tC=relicTeleportEnabled and theme.AccentActive or theme.Surface;local txtC=relicTeleportEnabled and theme.WhiteText or theme.Text;tweenProperty(relicToggle,{BackgroundColor3=tC,TextColor3=txtC},TWEEN_FAST)
-if relicTeleportEnabled and not relicLoopRunning then relicLoopRunning=true;task.spawn(function()while relicTeleportEnabled do local currentRelicTarget=nil;local spawnedTrinkets=workspace.Game.Trinkets and workspace.Game.Trinkets:FindFirstChild("Spawned")
-if spawnedTrinkets then for _,relic in ipairs(spawnedTrinkets:GetChildren())do if relic:IsA("BasePart")and relic:FindFirstChildOfClass("TouchTransmitter")then currentRelicTarget=relic;break end end end
-if currentRelicTarget then local char=player.Character;if char then local hrp=char:FindFirstChild("HumanoidRootPart")
-if hrp then local oCFrame=hrp.CFrame;local tPos=currentRelicTarget.Position+Vector3.new(0,3.5,0);hrp.CFrame=CFrame.new(tPos);local sTime=tick()
-while currentRelicTarget and currentRelicTarget.Parent and(tick()-sTime<5)and relicTeleportEnabled do RunService.Heartbeat:Wait() end
-if relicTeleportEnabled and hrp.Parent then hrp.CFrame=oCFrame end;task.wait(0.5)end end else task.wait(1)end;if not relicTeleportEnabled then break end end;relicLoopRunning=false
-if relicToggle.Parent and not relicTeleportEnabled then relicToggle.Text="Enable Relics Teleport: OFF";tweenProperty(relicToggle,{BackgroundColor3=theme.Surface,TextColor3=theme.Text},TWEEN_FAST)end end)end end)
-
-local playersTitle=Instance.new("TextLabel");playersTitle.Name="SectionTitle";playersTitle.Size=UDim2.new(1,0,0,30);playersTitle.BackgroundTransparency=1;playersTitle.Text="Auto Kill Players";playersTitle.Font=FONT_BOLD;playersTitle.TextSize=20;playersTitle.TextColor3=theme.Text;playersTitle.TextXAlignment=Enum.TextXAlignment.Left;playersTitle.LayoutOrder=1;playersTitle.Parent=playersFrame
-local P_SearchBar=Instance.new("TextBox");P_SearchBar.Name="P_SearchBar";P_SearchBar.Size=UDim2.new(1,0,0,35);P_SearchBar.PlaceholderText="Search Players...";P_SearchBar.PlaceholderColor3=theme.TextSecondary;P_SearchBar.Text="";P_SearchBar.Font=FONT_REGULAR;P_SearchBar.TextSize=16;P_SearchBar.TextColor3=theme.Text;P_SearchBar.BackgroundColor3=theme.Surface;P_SearchBar.ClearTextOnFocus=false;P_SearchBar.LayoutOrder=2;P_SearchBar.Parent=playersFrame
+local p_y = PADDING
+local playersTitle=Instance.new("TextLabel");playersTitle.Name="SectionTitle";playersTitle.Size=UDim2.new(1,-PADDING*2,0,TITLE_HEIGHT); playersTitle.Position = UDim2.new(0,PADDING,0,p_y); playersTitle.BackgroundTransparency=1;playersTitle.Text="Auto Kill Players";playersTitle.Font=FONT_BOLD;playersTitle.TextSize=20;playersTitle.TextColor3=theme.Text;playersTitle.TextXAlignment=Enum.TextXAlignment.Left; playersTitle.Parent=playersFrame
+p_y = p_y + TITLE_HEIGHT + PADDING
+local P_ControlsContainer = Instance.new("Frame");P_ControlsContainer.Name = "P_ControlsContainer";P_ControlsContainer.Size = UDim2.new(1, -PADDING*2, 0, CONTROLS_HEIGHT);P_ControlsContainer.Position = UDim2.new(0,PADDING,0,p_y);P_ControlsContainer.BackgroundColor3 = theme.DarkerBackground;P_ControlsContainer.Parent = playersFrame
+addCorner(P_ControlsContainer, CORNER_MEDIUM);addStroke(P_ControlsContainer, theme.Stroke, 1);addPadding(P_ControlsContainer, 8, 8, 8, 8)
+local P_ControlsLayout = Instance.new("UIListLayout");P_ControlsLayout.Padding = UDim.new(0, 8);P_ControlsLayout.Parent = P_ControlsContainer
+local P_SearchBar=Instance.new("TextBox");P_SearchBar.Name="P_SearchBar";P_SearchBar.Size=UDim2.new(1,0,0,28);P_SearchBar.PlaceholderText="Search Players...";P_SearchBar.Text = "";P_SearchBar.Font=FONT_REGULAR;P_SearchBar.TextSize=16;P_SearchBar.TextColor3=theme.Text;P_SearchBar.BackgroundColor3=theme.Surface;P_SearchBar.Parent=P_ControlsContainer
 addCorner(P_SearchBar,CORNER_SMALL);addStroke(P_SearchBar,theme.Stroke,1)
-
-local EveryPlayerButton = Instance.new("TextButton")
-EveryPlayerButton.Name = "EveryPlayerButton"
-EveryPlayerButton.Text = "Toggle All Players: OFF"
-EveryPlayerButton.Font = FONT_SEMIBOLD
-EveryPlayerButton.TextSize = 16
-EveryPlayerButton.TextColor3 = theme.Text
-EveryPlayerButton.BackgroundColor3 = theme.Surface
-EveryPlayerButton.Size = UDim2.new(1, 0, 0, 35)
-EveryPlayerButton.BorderSizePixel = 0
-EveryPlayerButton.LayoutOrder = 3
-EveryPlayerButton.Parent = playersFrame
-addCorner(EveryPlayerButton, CORNER_SMALL)
-addStroke(EveryPlayerButton, theme.Stroke, 1)
-
-local P_Scroll=Instance.new("ScrollingFrame");P_Scroll.Name="P_Scroll";P_Scroll.Size=UDim2.new(1,0,1,0);P_Scroll.BackgroundTransparency=0.7;P_Scroll.BackgroundColor3=theme.LighterBackground;P_Scroll.ScrollBarThickness=8;P_Scroll.ScrollBarImageColor3=theme.ScrollBar;P_Scroll.CanvasSize = UDim2.new(0,0,0,0); P_Scroll.LayoutOrder=4;P_Scroll.Parent=playersFrame
+local EveryPlayerButton = Instance.new("TextButton");EveryPlayerButton.Name = "EveryPlayerButton";EveryPlayerButton.Text = "Toggle All Players: OFF";EveryPlayerButton.Font = FONT_SEMIBOLD;EveryPlayerButton.TextSize = 16;EveryPlayerButton.TextColor3 = theme.Text;EveryPlayerButton.BackgroundColor3 = theme.Surface;EveryPlayerButton.Size = UDim2.new(1, 0, 0, 28);EveryPlayerButton.Parent = P_ControlsContainer
+addCorner(EveryPlayerButton, CORNER_SMALL);addStroke(EveryPlayerButton, theme.Stroke, 1)
+p_y = p_y + CONTROLS_HEIGHT + PADDING
+local P_SliderContainer = Instance.new("Frame"); P_SliderContainer.Name = "P_SliderContainer"; P_SliderContainer.Size = UDim2.new(1, -PADDING*2, 0, SLIDER_CONTROLS_HEIGHT); P_SliderContainer.Position = UDim2.new(0, PADDING, 0, p_y); P_SliderContainer.BackgroundColor3 = theme.DarkerBackground; P_SliderContainer.Parent = playersFrame
+addCorner(P_SliderContainer, CORNER_MEDIUM); addStroke(P_SliderContainer, theme.Stroke, 1); addPadding(P_SliderContainer, 5, 5, 5, 5)
+createSlider(P_SliderContainer, "Speed (s)", 0.05, 1, ATTACK_DELAY_PLAYER, function(val) ATTACK_DELAY_PLAYER = val end)
+p_y = p_y + SLIDER_CONTROLS_HEIGHT + PADDING
+local P_Scroll=Instance.new("ScrollingFrame");P_Scroll.Name="P_Scroll";P_Scroll.Position = UDim2.new(0,PADDING,0,p_y);P_Scroll.Size=UDim2.new(1,-PADDING*2,1,-p_y - PADDING);P_Scroll.BackgroundColor3=theme.Surface;P_Scroll.ScrollBarThickness=8;P_Scroll.ScrollBarImageColor3=theme.ScrollBar;P_Scroll.Parent=playersFrame
 addCorner(P_Scroll,CORNER_MEDIUM);addStroke(P_Scroll,theme.Stroke,1);addPadding(P_Scroll,5,5,5,5)
-local P_ListLayout=Instance.new("UIListLayout");P_ListLayout.Padding=UDim.new(0,6);P_ListLayout.Parent=P_Scroll
-P_ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()P_Scroll.CanvasSize=UDim2.new(0,0,0,P_ListLayout.AbsoluteContentSize.Y)end)
-
-local playerAutoKillToggles={};local playerAutoKillLoopRunning={};local playerButtons={};
-local allPlayersOn = false
-
+local P_ListLayout=Instance.new("UIListLayout");P_ListLayout.Padding=UDim.new(0,5);P_ListLayout.Parent=P_Scroll
+P_ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()P_Scroll.CanvasSize=UDim2.fromOffset(0,P_ListLayout.AbsoluteContentSize.Y)end)
+local playerAutoKillToggles={};local playerAutoKillLoopRunning={};local playerButtons={};local allPlayersOn = false
 local function addPlayerButton(plrToAdd)
-    if plrToAdd == player then return end
-    if P_Scroll:FindFirstChild("PlayerButton_"..plrToAdd.Name) then return end
-
-    local btn=Instance.new("TextButton");btn.Name="PlayerButton_"..plrToAdd.Name;btn.Text=plrToAdd.Name.." : OFF";btn.Font=FONT_REGULAR;btn.TextSize=16;btn.TextColor3=theme.TextSecondary;btn.BackgroundColor3=theme.Surface;btn.Size=UDim2.new(1,0,0,30);btn.Parent=P_Scroll
-    addCorner(btn,CORNER_SMALL);addStroke(btn,theme.Stroke,1);playerAutoKillToggles[plrToAdd.Name]=false;playerAutoKillLoopRunning[plrToAdd.Name]=false
-
-    btn.MouseEnter:Connect(function()if not playerAutoKillToggles[plrToAdd.Name]then tweenProperty(btn,{BackgroundColor3=theme.SurfaceHover,TextColor3=theme.Text},TWEEN_FAST)end end)
-    btn.MouseLeave:Connect(function()if not playerAutoKillToggles[plrToAdd.Name]then tweenProperty(btn,{BackgroundColor3=theme.Surface,TextColor3=theme.TextSecondary},TWEEN_FAST)end end)
+    if plrToAdd == player or P_Scroll:FindFirstChild("PlayerButton_"..plrToAdd.Name) then return end
+    local btn=Instance.new("TextButton");btn.Name="PlayerButton_"..plrToAdd.Name;btn.Text=plrToAdd.Name.." : OFF";btn.Font=FONT_REGULAR;btn.TextSize=14;btn.TextColor3=theme.TextSecondary;btn.BackgroundColor3=theme.Surface;btn.Size=UDim2.new(1,0,0,28);btn.Parent=P_Scroll
+    addCorner(btn,CORNER_SMALL);addStroke(btn,theme.Stroke,1)
+    playerAutoKillToggles[plrToAdd.Name]=false;playerAutoKillLoopRunning[plrToAdd.Name]=false
+    btn.MouseEnter:Connect(function()if not playerAutoKillToggles[plrToAdd.Name]then tweenProperty(btn,{BackgroundColor3=theme.SurfaceHover},TWEEN_FAST)end end)
+    btn.MouseLeave:Connect(function()if not playerAutoKillToggles[plrToAdd.Name]then tweenProperty(btn,{BackgroundColor3=theme.Surface},TWEEN_FAST)end end)
     btn.MouseButton1Click:Connect(function()
         playerAutoKillToggles[plrToAdd.Name]=not playerAutoKillToggles[plrToAdd.Name]
         if playerAutoKillToggles[plrToAdd.Name]then
             btn.Text=plrToAdd.Name.." : ON";tweenProperty(btn,{BackgroundColor3=theme.AccentActive,TextColor3=theme.WhiteText},TWEEN_FAST)
             if not playerAutoKillLoopRunning[plrToAdd.Name]then
                 playerAutoKillLoopRunning[plrToAdd.Name]=true;task.spawn(function()while playerAutoKillToggles[plrToAdd.Name]and btn.Parent do local targetChar=plrToAdd.Character
-                if targetChar and targetChar:FindFirstChild("Humanoid")and targetChar.Humanoid.Health>0 then ReplicatedStorage.Remotes.ClientToServer.BasicCombat:FireServer("Skill",targetChar.Humanoid)
-                else
-                    playerAutoKillToggles[plrToAdd.Name] = false
-                end
-                RunService.Heartbeat:Wait()
+                if targetChar and targetChar:FindFirstChild("Humanoid")and targetChar.Humanoid.Health>0 then
+                    local args = {"Light Punche",1,targetChar.Humanoid,[6] = false,[7] = false}
+                    game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("ClientToServer"):WaitForChild("BasicCombat"):FireServer(unpack(args))
+                else playerAutoKillToggles[plrToAdd.Name] = false end
+                task.wait(ATTACK_DELAY_PLAYER)
                 end;playerAutoKillLoopRunning[plrToAdd.Name]=false
                 if btn.Parent and not playerAutoKillToggles[plrToAdd.Name]then btn.Text=plrToAdd.Name.." : OFF";tweenProperty(btn,{BackgroundColor3=theme.Surface,TextColor3=theme.TextSecondary},TWEEN_FAST)end end)end
-        else
-            btn.Text=plrToAdd.Name.." : OFF";tweenProperty(btn,{BackgroundColor3=theme.Surface,TextColor3=theme.TextSecondary},TWEEN_FAST)
-        end
+        else btn.Text=plrToAdd.Name.." : OFF";tweenProperty(btn,{BackgroundColor3=theme.Surface,TextColor3=theme.TextSecondary},TWEEN_FAST) end
     end);playerButtons[plrToAdd.Name]=btn
 end
 local function removePlayerButton(plrToRemove)local btn=P_Scroll:FindFirstChild("PlayerButton_"..plrToRemove.Name);if btn then playerAutoKillToggles[plrToRemove.Name]=false;btn:Destroy();playerButtons[plrToRemove.Name]=nil;playerAutoKillLoopRunning[plrToRemove.Name]=nil end end
 for _,p in ipairs(Players:GetPlayers())do addPlayerButton(p)end;Players.PlayerAdded:Connect(addPlayerButton);Players.PlayerRemoving:Connect(removePlayerButton)
-task.defer(function() if P_ListLayout.Parent then P_ListLayout:ApplyLayout() end end)
-
-EveryPlayerButton.MouseEnter:Connect(function() tweenProperty(EveryPlayerButton, {BackgroundColor3 = allPlayersOn and theme.AccentHover or theme.SurfaceHover}, TWEEN_FAST) end)
-EveryPlayerButton.MouseLeave:Connect(function() tweenProperty(EveryPlayerButton, {BackgroundColor3 = allPlayersOn and theme.AccentActive or theme.Surface}, TWEEN_FAST) end)
+task.defer(function() if P_ListLayout and P_ListLayout.Parent then P_ListLayout:ApplyLayout() end end)
 EveryPlayerButton.MouseButton1Click:Connect(function()
     allPlayersOn = not allPlayersOn
     EveryPlayerButton.Text = allPlayersOn and "Toggle All Players: ON" or "Toggle All Players: OFF"
-    local targetColor = allPlayersOn and theme.AccentActive or theme.Surface
-    local textColor = allPlayersOn and theme.WhiteText or theme.Text
+    local targetColor = allPlayersOn and theme.AccentActive or theme.Surface; local textColor = allPlayersOn and theme.WhiteText or theme.Text
     tweenProperty(EveryPlayerButton, {BackgroundColor3 = targetColor, TextColor3 = textColor}, TWEEN_FAST)
-
-    for playerName, btnInstance in pairs(playerButtons) do
-        if btnInstance and btnInstance.Parent and playerAutoKillToggles[playerName] ~= allPlayersOn then
-             playerAutoKillToggles[playerName] = allPlayersOn
-
-             if allPlayersOn then
-                 btnInstance.Text = playerName.." : ON"
-                 tweenProperty(btnInstance, {BackgroundColor3 = theme.AccentActive, TextColor3 = theme.WhiteText}, TWEEN_FAST)
-                 if not playerAutoKillLoopRunning[playerName] then
-                     playerAutoKillLoopRunning[playerName] = true
-                     task.spawn(function()
-                         while playerAutoKillToggles[playerName] and btnInstance.Parent do
-                             local targetChar = Players:FindFirstChild(playerName) and Players:FindFirstChild(playerName).Character
-                             if targetChar and targetChar:FindFirstChild("Humanoid") and targetChar.Humanoid.Health > 0 then
-                                 ReplicatedStorage.Remotes.ClientToServer.BasicCombat:FireServer("Skill", targetChar.Humanoid)
-                             else
-                                playerAutoKillToggles[playerName] = false
-                             end
-                             RunService.Heartbeat:Wait()
-                         end
-                         playerAutoKillLoopRunning[playerName] = false
-                         if btnInstance.Parent and not playerAutoKillToggles[playerName] then
-                             btnInstance.Text = playerName.." : OFF"
-                             tweenProperty(btnInstance, {BackgroundColor3 = theme.Surface, TextColor3 = theme.TextSecondary}, TWEEN_FAST)
-                         end
-                     end)
-                 end
-             else
-                 btnInstance.Text = playerName.." : OFF"
-                 tweenProperty(btnInstance, {BackgroundColor3 = theme.Surface, TextColor3 = theme.TextSecondary}, TWEEN_FAST)
-             end
-        end
-    end
+    for playerName, btnInstance in pairs(playerButtons) do if btnInstance and btnInstance.Parent and playerAutoKillToggles[playerName] ~= allPlayersOn then btnInstance.MouseButton1Click:Fire() end end
 end)
-
 P_SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
     local query = P_SearchBar.Text:lower()
-    for _, child in ipairs(P_Scroll:GetChildren()) do
-        if child:IsA("TextButton") and child.Name:match("^PlayerButton_") then
-            local pName = child.Name:sub(14):lower()
-            child.Visible = (query == "" or pName:find(query))
-        end
-    end
+    for _, child in ipairs(P_Scroll:GetChildren()) do if child:IsA("TextButton") and child.Name:match("^PlayerButton_") then local pName = child.Name:sub(14):lower(); child.Visible = (query == "" or pName:find(query)) end end
     P_ListLayout:ApplyLayout()
 end)
 
-local teleportsTitle=Instance.new("TextLabel");teleportsTitle.Name="SectionTitle";teleportsTitle.Size=UDim2.new(1,0,0,30);teleportsTitle.BackgroundTransparency=1;teleportsTitle.Text="Trainer Teleports";teleportsTitle.Font=FONT_BOLD;teleportsTitle.TextSize=20;teleportsTitle.TextColor3=theme.Text;teleportsTitle.TextXAlignment=Enum.TextXAlignment.Left;teleportsTitle.LayoutOrder=1;teleportsTitle.Parent=teleportsFrame
-local T_SearchBar=Instance.new("TextBox");T_SearchBar.Name="T_SearchBar";T_SearchBar.Size=UDim2.new(1,0,0,35);T_SearchBar.PlaceholderText="Search Teleports...";T_SearchBar.PlaceholderColor3=theme.TextSecondary;T_SearchBar.Text="";T_SearchBar.Font=FONT_REGULAR;T_SearchBar.TextSize=16;T_SearchBar.TextColor3=theme.Text;T_SearchBar.BackgroundColor3=theme.Surface;T_SearchBar.ClearTextOnFocus=false;T_SearchBar.LayoutOrder=2;T_SearchBar.Parent=teleportsFrame
+local function equipStyle(trainerName) local questRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("ClientToServer"):WaitForChild("Quest"); questRemote:InvokeServer(trainerName) end
+local function teleportToTrainer(tName) local tF2=workspace.Game:FindFirstChild("Trainers");if tF2 then local tr=tF2:FindFirstChild(tName);if tr and tr:FindFirstChild("HumanoidRootPart")then local lPC=player.Character;if lPC then local hrp=lPC:FindFirstChild("HumanoidRootPart");if hrp then hrp.CFrame=tr.HumanoidRootPart.CFrame+Vector3.new(0,3.5,0)end end end end end
+
+local s_y = PADDING
+local stylesTitle = Instance.new("TextLabel"); stylesTitle.Name = "SectionTitle"; stylesTitle.Size = UDim2.new(1,-PADDING*2,0,TITLE_HEIGHT); stylesTitle.Position = UDim2.new(0,PADDING,0,s_y); stylesTitle.BackgroundTransparency=1; stylesTitle.Text="Combat Styles"; stylesTitle.Font=FONT_BOLD; stylesTitle.TextSize=20; stylesTitle.TextColor3=theme.Text; stylesTitle.TextXAlignment=Enum.TextXAlignment.Left; stylesTitle.Parent=stylesFrame
+s_y = s_y + TITLE_HEIGHT + PADDING
+local StyleSearchBar = Instance.new("TextBox");StyleSearchBar.Name="StyleSearchBar";StyleSearchBar.Size=UDim2.new(1,-PADDING*2,0,35);StyleSearchBar.Position=UDim2.new(0,PADDING,0,s_y);StyleSearchBar.PlaceholderText="Search Trainers...";StyleSearchBar.Text = "";StyleSearchBar.Font=FONT_REGULAR;StyleSearchBar.TextSize=16;StyleSearchBar.TextColor3=theme.Text;StyleSearchBar.BackgroundColor3=theme.Surface;StyleSearchBar.Parent=stylesFrame
+addCorner(StyleSearchBar, CORNER_SMALL); addStroke(StyleSearchBar, theme.Stroke, 1)
+s_y = s_y + 35 + PADDING
+local TrainerScroll = Instance.new("ScrollingFrame");TrainerScroll.Name="TrainerScroll";TrainerScroll.Position = UDim2.new(0,PADDING,0,s_y); TrainerScroll.Size=UDim2.new(1,-PADDING*2,1,-s_y-PADDING); TrainerScroll.BackgroundColor3=theme.Surface; TrainerScroll.ScrollBarThickness=8; TrainerScroll.ScrollBarImageColor3=theme.ScrollBar; TrainerScroll.Parent=stylesFrame
+addCorner(TrainerScroll, CORNER_MEDIUM); addStroke(TrainerScroll, theme.Stroke, 1); addPadding(TrainerScroll,5,5,5,5)
+local TrainerUIList = Instance.new("UIListLayout"); TrainerUIList.Padding = UDim.new(0,5); TrainerUIList.Parent = TrainerScroll
+TrainerUIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() TrainerScroll.CanvasSize = UDim2.fromOffset(0,TrainerUIList.AbsoluteContentSize.Y) end)
+local trainersFolder = workspace.Game:FindFirstChild("Trainers")
+if trainersFolder then for _,trainer in ipairs(trainersFolder:GetChildren())do if trainer:IsA("Model")or trainer:IsA("Folder")then local tBtn=Instance.new("TextButton"); tBtn.Name="TrainerBtn"..trainer.Name; tBtn.Text=trainer.Name; tBtn.Font=FONT_SEMIBOLD; tBtn.TextSize = 14; tBtn.TextColor3=theme.WhiteText; tBtn.BackgroundColor3=theme.Accent; tBtn.Size=UDim2.new(1,0,0,28); tBtn.Parent=TrainerScroll; addCorner(tBtn,CORNER_SMALL); addStroke(tBtn,theme.Stroke,1); tBtn.MouseEnter:Connect(function()tweenProperty(tBtn,{BackgroundColor3=theme.AccentHover},TWEEN_FAST)end); tBtn.MouseLeave:Connect(function()tweenProperty(tBtn,{BackgroundColor3=theme.Accent},TWEEN_FAST)end); tBtn.MouseButton1Click:Connect(function()equipStyle(trainer.Name);local oC=tBtn.BackgroundColor3;tweenProperty(tBtn,{BackgroundColor3=theme.AccentActive},TWEEN_FAST);task.wait(TWEEN_NORMAL);tweenProperty(tBtn,{BackgroundColor3=oC},TWEEN_FAST)end) end end end
+task.defer(function() if TrainerUIList and TrainerUIList.Parent then TrainerUIList:ApplyLayout() end end)
+StyleSearchBar:GetPropertyChangedSignal("Text"):Connect(function()local q=StyleSearchBar.Text:lower();for _,c in ipairs(TrainerScroll:GetChildren())do if c:IsA("TextButton")and c.Name:match("^TrainerBtn")then local n=c.Name:sub(11):lower();c.Visible=(q==""or n:find(q))end end;TrainerUIList:ApplyLayout()end)
+
+local t_y = PADDING
+local teleportsTitle=Instance.new("TextLabel");teleportsTitle.Name="SectionTitle";teleportsTitle.Size=UDim2.new(1,-PADDING*2,0,TITLE_HEIGHT);teleportsTitle.Position = UDim2.new(0,PADDING,0,t_y);teleportsTitle.BackgroundTransparency=1;teleportsTitle.Text="Trainer Teleports";teleportsTitle.Font=FONT_BOLD;teleportsTitle.TextSize=20;teleportsTitle.TextColor3=theme.Text;teleportsTitle.TextXAlignment=Enum.TextXAlignment.Left;teleportsTitle.Parent=teleportsFrame
+t_y = t_y + TITLE_HEIGHT + PADDING
+local T_SearchBar=Instance.new("TextBox");T_SearchBar.Name="T_SearchBar";T_SearchBar.Size=UDim2.new(1,-PADDING*2,0,35);T_SearchBar.Position=UDim2.new(0,PADDING,0,t_y);T_SearchBar.PlaceholderText="Search Teleports...";T_SearchBar.Text = "";T_SearchBar.Font=FONT_REGULAR;T_SearchBar.TextSize=16;T_SearchBar.TextColor3=theme.Text;T_SearchBar.BackgroundColor3=theme.Surface;T_SearchBar.Parent=teleportsFrame
 addCorner(T_SearchBar,CORNER_SMALL);addStroke(T_SearchBar,theme.Stroke,1)
-local T_Scroll=Instance.new("ScrollingFrame");T_Scroll.Name="T_Scroll";T_Scroll.Size=UDim2.new(1,0,1,0);T_Scroll.BackgroundTransparency=0.7;T_Scroll.BackgroundColor3=theme.LighterBackground;T_Scroll.ScrollBarThickness=8;T_Scroll.ScrollBarImageColor3=theme.ScrollBar;T_Scroll.CanvasSize = UDim2.new(0,0,0,0); T_Scroll.LayoutOrder=3;T_Scroll.Parent=teleportsFrame
+t_y = t_y + 35 + PADDING
+local T_Scroll=Instance.new("ScrollingFrame");T_Scroll.Name="T_Scroll";T_Scroll.Position = UDim2.new(0,PADDING,0,t_y);T_Scroll.Size=UDim2.new(1,-PADDING*2,1,-t_y-PADDING);T_Scroll.BackgroundColor3=theme.Surface;T_Scroll.ScrollBarThickness=8;T_Scroll.ScrollBarImageColor3=theme.ScrollBar;T_Scroll.Parent=teleportsFrame
 addCorner(T_Scroll,CORNER_MEDIUM);addStroke(T_Scroll,theme.Stroke,1);addPadding(T_Scroll,5,5,5,5)
-local T_ListLayout=Instance.new("UIListLayout");T_ListLayout.Padding=UDim.new(0,6);T_ListLayout.Parent=T_Scroll
-T_ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()T_Scroll.CanvasSize=UDim2.new(0,0,0,T_ListLayout.AbsoluteContentSize.Y)end)
-local function teleportToTrainer(tName)local tF2=workspace.Game:FindFirstChild("Trainers");if tF2 then local tr=tF2:FindFirstChild(tName);if tr and tr:FindFirstChild("HumanoidRootPart")then local lPC=player.Character;if lPC then local hrp=lPC:FindFirstChild("HumanoidRootPart");if hrp then hrp.CFrame=tr.HumanoidRootPart.CFrame+Vector3.new(0,3.5,0)end end end end end
-local function createTeleportButton(trainerName)local tBtn=Instance.new("TextButton");tBtn.Name="TeleportTrainer"..trainerName;tBtn.Text="TP: "..trainerName;tBtn.Font=FONT_SEMIBOLD;tBtn.TextSize=16;tBtn.TextColor3=theme.WhiteText;tBtn.BackgroundColor3=theme.Accent;tBtn.Size=UDim2.new(1,0,0,30);tBtn.Parent=T_Scroll
-addCorner(tBtn,CORNER_SMALL);addStroke(tBtn,theme.Stroke,1)
-tBtn.MouseEnter:Connect(function()tweenProperty(tBtn,{BackgroundColor3=theme.AccentHover},TWEEN_FAST)end);tBtn.MouseLeave:Connect(function()tweenProperty(tBtn,{BackgroundColor3=theme.Accent},TWEEN_FAST)end)
-tBtn.MouseButton1Click:Connect(function()teleportToTrainer(trainerName);local oC=tBtn.BackgroundColor3;tweenProperty(tBtn,{BackgroundColor3=theme.AccentActive},TWEEN_FAST);task.wait(TWEEN_NORMAL);tweenProperty(tBtn,{BackgroundColor3=oC},TWEEN_FAST)end)end
-if trainersFolder then for _,trainer in ipairs(trainersFolder:GetChildren())do if trainer:IsA("Model")or trainer:IsA("Folder")then createTeleportButton(trainer.Name)end end end
-task.defer(function() if T_ListLayout.Parent then T_ListLayout:ApplyLayout() end end)
+local T_ListLayout=Instance.new("UIListLayout");T_ListLayout.Padding=UDim.new(0,5);T_ListLayout.Parent=T_Scroll
+T_ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()T_Scroll.CanvasSize=UDim2.fromOffset(0,T_ListLayout.AbsoluteContentSize.Y)end)
+if trainersFolder then for _,trainer in ipairs(trainersFolder:GetChildren())do if trainer:IsA("Model")or trainer:IsA("Folder")then local tBtn=Instance.new("TextButton");tBtn.Name="TeleportTrainer"..trainer.Name;tBtn.Text="TP: "..trainer.Name;tBtn.Font=FONT_SEMIBOLD;tBtn.TextSize=14;tBtn.TextColor3=theme.WhiteText;tBtn.BackgroundColor3=theme.Accent;tBtn.Size=UDim2.new(1,0,0,28);tBtn.Parent=T_Scroll;addCorner(tBtn,CORNER_SMALL);addStroke(tBtn,theme.Stroke,1);tBtn.MouseEnter:Connect(function()tweenProperty(tBtn,{BackgroundColor3=theme.AccentHover},TWEEN_FAST)end);tBtn.MouseLeave:Connect(function()tweenProperty(tBtn,{BackgroundColor3=theme.Accent},TWEEN_FAST)end);tBtn.MouseButton1Click:Connect(function()teleportToTrainer(trainer.Name);local oC=tBtn.BackgroundColor3;tweenProperty(tBtn,{BackgroundColor3=theme.AccentActive},TWEEN_FAST);task.wait(TWEEN_NORMAL);tweenProperty(tBtn,{BackgroundColor3=oC},TWEEN_FAST)end)end end end
+task.defer(function() if T_ListLayout and T_ListLayout.Parent then T_ListLayout:ApplyLayout() end end)
 T_SearchBar:GetPropertyChangedSignal("Text"):Connect(function()local q=T_SearchBar.Text:lower();for _,c in ipairs(T_Scroll:GetChildren())do if c:IsA("TextButton")and c.Name:match("^TeleportTrainer")then local n=c.Name:sub(16):lower();c.Visible=(q==""or n:find(q))end end;T_ListLayout:ApplyLayout()end)
 
-local function showTab(tabBtn, frameToShow)
-    highlightTab(tabBtn)
-    showSectionFrame(frameToShow)
-end
+local listLayout = Instance.new("UIListLayout"); listLayout.Padding = UDim.new(0,10); listLayout.Parent = relicsFrame; addPadding(relicsFrame, PADDING, PADDING, PADDING, PADDING)
+local relicsTitle=Instance.new("TextLabel");relicsTitle.Name="SectionTitle";relicsTitle.Size=UDim2.new(1,0,0,30);relicsTitle.BackgroundTransparency=1;relicsTitle.Text="Auto Collect Relics";relicsTitle.Font=FONT_BOLD;relicsTitle.TextSize=20;relicsTitle.TextColor3=theme.Text;relicsTitle.TextXAlignment=Enum.TextXAlignment.Left;relicsTitle.Parent=relicsFrame
+local relicToggle=Instance.new("TextButton");relicToggle.Name="RelicsToggle";relicToggle.Size=UDim2.new(1,0,0,35);relicToggle.BackgroundColor3=theme.Surface;relicToggle.TextColor3=theme.Text;relicToggle.Font=FONT_SEMIBOLD;relicToggle.TextSize=16;relicToggle.Text="Enable Relics Teleport: OFF";relicToggle.Parent=relicsFrame
+addCorner(relicToggle,CORNER_SMALL);addStroke(relicToggle,theme.Stroke,1)
+local relicTeleportEnabled=false;local relicLoopRunning=false
+relicToggle.MouseButton1Click:Connect(function()relicTeleportEnabled=not relicTeleportEnabled;relicToggle.Text=relicTeleportEnabled and"Enable Relics Teleport: ON"or"Enable Relics Teleport: OFF";local tC=relicTeleportEnabled and theme.AccentActive or theme.Surface;local txtC=relicTeleportEnabled and theme.WhiteText or theme.Text;tweenProperty(relicToggle,{BackgroundColor3=tC,TextColor3=txtC},TWEEN_FAST)
+if relicTeleportEnabled and not relicLoopRunning then relicLoopRunning=true;task.spawn(function()while relicTeleportEnabled do local currentRelicTarget=nil;local spawnedTrinkets=workspace.Game.Trinkets and workspace.Game.Trinkets:FindFirstChild("Spawned")
+if spawnedTrinkets then for _,relic in ipairs(spawnedTrinkets:GetChildren())do if relic:IsA("BasePart")and relic:FindFirstChildOfClass("TouchTransmitter")then currentRelicTarget=relic;break end end end
+if currentRelicTarget then
+    local char=player.Character;if char then local hrp=char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        local oCFrame=hrp.CFrame;
+        local tPos=currentRelicTarget.Position+Vector3.new(0,3.5,0);
+        hrp.CFrame=CFrame.new(tPos);
 
+        local collectedRelic = false
+        local startTime = tick()
+        while relicTeleportEnabled and currentRelicTarget and currentRelicTarget.Parent and (tick() - startTime < 5) do
+            if not currentRelicTarget:FindFirstChildOfClass("TouchTransmitter") then -- Check if it's still collectible
+                collectedRelic = true
+                break
+            end
+            RunService.Heartbeat:Wait()
+        end
+
+        if collectedRelic and relicTeleportEnabled and hrp.Parent then
+            hrp.CFrame=oCFrame
+            task.wait(0.5)
+        end
+    end end else task.wait(1)end;if not relicTeleportEnabled then break end end;relicLoopRunning=false
+if relicToggle.Parent and not relicTeleportEnabled then relicToggle.Text="Enable Relics Teleport: OFF";tweenProperty(relicToggle,{BackgroundColor3=theme.Surface,TextColor3=theme.Text},TWEEN_FAST)end end)end end)
+
+local function showTab(tabBtn, frameToShow) highlightTab(tabBtn); showSectionFrame(frameToShow) end
 autoKillTabButton.MouseButton1Click:Connect(function() showTab(autoKillTabButton, autoKillFrame) end)
 stylesTabButton.MouseButton1Click:Connect(function() showTab(stylesTabButton, stylesFrame) end)
 relicsTabButton.MouseButton1Click:Connect(function() showTab(relicsTabButton, relicsFrame) end)
 playersTabButton.MouseButton1Click:Connect(function() showTab(playersTabButton, playersFrame) end)
 teleportsTabButton.MouseButton1Click:Connect(function() showTab(teleportsTabButton, teleportsFrame) end)
-
 local function stopAllLogic()
-    print("stopAllLogic: Starting")
-    for bossName, _ in pairs(autoBossToggles) do autoBossToggles[bossName] = false end
-    allBossesOn = false
-    if EveryBossButton and EveryBossButton.Parent then
-        EveryBossButton.Text = "Toggle All Bosses: OFF"
-        tweenProperty(EveryBossButton, {BackgroundColor3 = theme.Surface, TextColor3 = theme.Text}, TWEEN_FAST)
-    end
-
+    for bossName, _ in pairs(autoBossToggles) do autoBossToggles[bossName] = false end; allBossesOn = false
+    if EveryBossButton and EveryBossButton.Parent then EveryBossButton.Text = "Toggle All Bosses: OFF"; tweenProperty(EveryBossButton, {BackgroundColor3 = theme.Surface, TextColor3 = theme.Text}, TWEEN_FAST) end
     relicTeleportEnabled = false
-    if relicToggle and relicToggle.Parent then
-         relicToggle.Text = "Enable Relics Teleport: OFF"
-         tweenProperty(relicToggle, {BackgroundColor3 = theme.Surface, TextColor3 = theme.Text}, TWEEN_FAST)
-    end
-
-    for plrName, _ in pairs(playerAutoKillToggles) do playerAutoKillToggles[plrName] = false end
-    allPlayersOn = false
-    if EveryPlayerButton and EveryPlayerButton.Parent then
-         EveryPlayerButton.Text = "Toggle All Players: OFF"
-         tweenProperty(EveryPlayerButton, {BackgroundColor3 = theme.Surface, TextColor3 = theme.Text}, TWEEN_FAST)
-    end
-
-    print("stopAllLogic: Completed")
+    if relicToggle and relicToggle.Parent then relicToggle.Text = "Enable Relics Teleport: OFF"; tweenProperty(relicToggle, {BackgroundColor3 = theme.Surface, TextColor3 = theme.Text}, TWEEN_FAST) end
+    for plrName, _ in pairs(playerAutoKillToggles) do playerAutoKillToggles[plrName] = false end; allPlayersOn = false
+    if EveryPlayerButton and EveryPlayerButton.Parent then EveryPlayerButton.Text = "Toggle All Players: OFF"; tweenProperty(EveryPlayerButton, {BackgroundColor3 = theme.Surface, TextColor3 = theme.Text}, TWEEN_FAST) end
 end
-
 CloseButton.MouseButton1Click:Connect(function()
-    print("Close button clicked")
     stopAllLogic()
-    print("stopAllLogic completed for close")
-
-    local currentSize = MainFrame.Size
-    local newSize = UDim2.new(currentSize.X.Scale, currentSize.X.Offset * 0.9, currentSize.Y.Scale, currentSize.Y.Offset * 0.9)
-    local currentPosition = MainFrame.Position
-    local newPosition = UDim2.new(currentPosition.X.Scale + 0.02, currentPosition.X.Offset + MainFrame.Size.X.Offset * 0.05,
-                                   currentPosition.Y.Scale + 0.02, currentPosition.Y.Offset + MainFrame.Size.Y.Offset * 0.05)
-
-    local tween = tweenProperty(MainFrame, {BackgroundTransparency = 1, Size = newSize, Position = newPosition }, TWEEN_EXIT, Enum.EasingStyle.Quad)
-
-    tween.Completed:Connect(function(playbackState)
-        print("Close Tween completed with state:", playbackState)
-        if ScreenGui and ScreenGui.Parent then
-            ScreenGui:Destroy()
-            print("ScreenGui destroyed")
-        else
-             print("ScreenGui was already nil or parentless on tween complete")
-        end
-    end)
-
-    task.delay(TWEEN_EXIT + 0.1, function()
-        if ScreenGui and ScreenGui.Parent then
-            print("Fallback: Destroying ScreenGui")
-            ScreenGui:Destroy()
-        end
-    end)
+    local tween = tweenProperty(MainFrame, {BackgroundTransparency = 1, Size = UDim2.fromOffset(MainFrame.AbsoluteSize.X * 0.9, MainFrame.AbsoluteSize.Y * 0.9)}, TWEEN_EXIT, Enum.EasingStyle.Quad)
+    tween.Completed:Connect(function() if ScreenGui and ScreenGui.Parent then ScreenGui:Destroy() end end)
+    task.delay(TWEEN_EXIT + 0.1, function() if ScreenGui and ScreenGui.Parent then ScreenGui:Destroy() end end)
 end)
-
 showTab(autoKillTabButton, autoKillFrame)
 ScreenGui.Enabled = true
 MainFrame.BackgroundTransparency = 1
-local targetSize = UDim2.new(0, 700, 0, 480)
-local initialAnimatedSize = UDim2.new(targetSize.X.Scale, targetSize.X.Offset * 0.8, targetSize.Y.Scale, targetSize.Y.Offset * 0.8)
-MainFrame.Size = initialAnimatedSize
-MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+local targetSize = UDim2.new(0, 700, 0, 480); local initialAnimatedSize = UDim2.new(targetSize.X.Scale, targetSize.X.Offset * 0.8, targetSize.Y.Scale, targetSize.Y.Offset * 0.8)
+MainFrame.Size = initialAnimatedSize; MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 tweenProperty(MainFrame, {BackgroundTransparency = 0, Size = targetSize, Position = UDim2.new(0.5,0,0.5,0)}, TWEEN_ENTRY, Enum.EasingStyle.Back)
-
 print("Xoa Hub New Loaded")
