@@ -350,7 +350,7 @@ local BossScroll = Instance.new("ScrollingFrame"); BossScroll.Name = "BossScroll
 addCorner(BossScroll, CORNER_MEDIUM); addStroke(BossScroll, theme.Stroke, 1); addPadding(BossScroll, 5, 5, 5, 5)
 local BossUIList = Instance.new("UIListLayout"); BossUIList.Padding = UDim.new(0, 5); BossUIList.Parent = BossScroll
 BossUIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() BossScroll.CanvasSize = UDim2.fromOffset(0, BossUIList.AbsoluteContentSize.Y) end)
-local autoBossNames = {"Kiyosumi Kato", "Retsu", "Dorian", "Sikorsky", "Spec", "Doyle", "Yanagi", "Yasha Ape Jr.", "Raian", "KiryuKazuma", "Pickle", "Musashi", "Predator", "Armstrong", "Jason Voorhees", "Goro Majima, Mad Dog of Shimano", "Jetstream Sam", "Headless One", "Slayer", "Sukune", "Leatherface", "The Protagonist", "Yasha Ape", "AdamSmasher", "Yasha Ape Sr.", "Katsumi", "Yujiro", "Hanayama", "Doppo Orochi", "Chiharu", "Kureha", "Koushou", "Motobe"}
+local autoBossNames = {"Kiyosumi Kato", "Retsu", "Dorian", "Sikorsky", "Spec", "Doyle", "Yanagi", "Yasha Ape Jr.", "Raian", "KiryuKazuma", "Pickle", "Musashi", "Predator", "Armstrong", "Jason Voorhees", "Goro Majima, Mad Dog of Shimano", "Jetstream Sam", "Headless One", "Slayer", "Sukune", "Leatherface", "The Protagonist", "Yasha Ape", "AdamSmasher", "Yasha Ape Sr.", "Katsumi", "Yujiro", "Hanayama", "Doppo Orochi", "Chiharu", "Kureha", "Koushou", "Motobe", "Ali Jr."}
 local autoBossToggles = {}; local autoBossLoopRunning = {}; local autoBossButtons = {}; local allBossesOn = false
 for _, boss in ipairs(autoBossNames) do autoBossToggles[boss] = false; autoBossLoopRunning[boss] = false end
 
