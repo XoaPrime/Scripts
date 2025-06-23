@@ -7,16 +7,6 @@ local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-local mt = getrawmetatable(game)
-setreadonly(mt, false)
-local oldNamecall = mt.__namecall
-mt.__namecall = function(self, ...)
-    local method = getnamecallmethod()
-    if method == "Kick" and tostring(self) == tostring(game.Players.LocalPlayer) then
-        return nil
-    end
-    return oldNamecall(self, ...)
-end
 
 local theme = {
     Background = Color3.fromRGB(30, 32, 38),
